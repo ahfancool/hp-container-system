@@ -1,0 +1,25 @@
+{
+  "name": "hp-container-system",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm --workspace frontend run dev",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:backend:staging": "npm --workspace backend run dev:staging",
+    "build": "npm run build --workspaces --if-present",
+    "build:frontend": "npm --workspace frontend run build",
+    "build:frontend:staging": "powershell -ExecutionPolicy Bypass -File ./scripts/build-frontend-static.ps1 -ApiBaseUrl https://hp-container-system-api-staging.ahfancool.workers.dev -AppEnv preview",
+    "build:frontend:production": "powershell -ExecutionPolicy Bypass -File ./scripts/build-frontend-static.ps1 -ApiBaseUrl https://hp-container-system-api-production.ahfancool.workers.dev -AppEnv production",
+    "build:backend": "npm --workspace backend run typecheck",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "check:env": "powershell -ExecutionPolicy Bypass -File ./scripts/check-env.ps1",
+    "check:production": "powershell -ExecutionPolicy Bypass -File ./scripts/check-production.ps1",
+    "deploy:backend:staging": "npm --workspace backend run deploy:staging",
+    "deploy:backend:production": "npm --workspace backend run deploy:production"
+  }
+}

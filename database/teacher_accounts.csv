@@ -1,0 +1,5 @@
+email,full_name,role,password
+guru.budi@sekolah.sch.id,Budi Santoso S.Pd,teacher,GuruPass123!
+guru.siti@sekolah.sch.id,Siti Aminah M.Pd,teacher,GuruPass456!
+wali.ahmad@sekolah.sch.id,Ahmad Subarjo S.T,homeroom,WaliPass789!
+admin.sistem@sekolah.sch.id,Admin Utama,admin,AdminSecure#1

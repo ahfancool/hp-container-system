@@ -1,0 +1,12 @@
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE=your-supabase-service-role
+JWT_SECRET=replace-with-a-long-random-secret
+APP_ENV=local
+ALLOWED_ORIGIN=http://localhost:3000
+SCHOOL_TIMEZONE=Asia/Jakarta
+REGULAR_IN_ALLOWED_START=06:30
+REGULAR_IN_ALLOWED_END=07:30
+REGULAR_OUT_ALLOWED_TIME=12:30
+CONTAINER_CACHE_TTL_SECONDS=90
+DASHBOARD_CACHE_TTL_SECONDS=10
