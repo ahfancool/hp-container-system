@@ -28,11 +28,11 @@ INSERT INTO auth.users (
     gen_random_uuid(),
     'authenticated',
     'authenticated',
-    'guru1@sekolah.sch.id',
+    'guru1@example.com',
     crypt('password123', gen_salt('bf')),
     now(),
     '{"provider": "email", "providers": ["email"]}',
-    '{"name": "Budi Santoso, S.Pd", "role": "teacher"}', -- Penting: Metadata role menentukan hak akses
+    '{"name": "Guru Satu, S.Pd", "role": "teacher"}', -- Penting: Metadata role menentukan hak akses
     now(),
     now(),
     '',
@@ -63,11 +63,11 @@ INSERT INTO auth.users (
     gen_random_uuid(),
     'authenticated',
     'authenticated',
-    'walikelas1@sekolah.sch.id',
+    'walikelas1@example.com',
     crypt('password123', gen_salt('bf')),
     now(),
     '{"provider": "email", "providers": ["email"]}',
-    '{"name": "Siti Aminah, M.Pd", "role": "homeroom"}',
+    '{"name": "Wali Satu, M.Pd", "role": "homeroom"}',
     now(),
     now(),
     '',
@@ -98,7 +98,7 @@ INSERT INTO auth.users (
     gen_random_uuid(),
     'authenticated',
     'authenticated',
-    'admin.kesiswaan@sekolah.sch.id',
+    'admin.kesiswaan@example.com',
     crypt('adminpass123', gen_salt('bf')),
     now(),
     '{"provider": "email", "providers": ["email"]}',
@@ -112,9 +112,3 @@ INSERT INTO auth.users (
 );
 
 COMMIT;
-
--- CATATAN:
--- 1. Role yang tersedia: 'teacher', 'homeroom', 'admin'.
--- 2. Pastikan email unik (tidak duplikat).
--- 3. Trigger 'on_auth_user_created' di database akan otomatis memindahkan data ke tabel public.users.
--- 4. Untuk melihat hasil sinkronisasi, jalankan: SELECT * FROM public.users;
