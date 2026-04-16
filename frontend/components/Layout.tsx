@@ -24,6 +24,7 @@ function getIcon(label: string) {
         </svg>
       );
     case "riwayat":
+    case "histori":
     case "audit":
       return (
         <svg className="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">

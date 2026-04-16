@@ -10,8 +10,14 @@ export function getDefaultRoute(snapshot: AuthSnapshot | null): string {
     return "/login";
   }
 
-  if (snapshot.appUser.role === "student") {
+  const role = snapshot.appUser.role;
+
+  if (role === "student") {
     return "/scan";
+  }
+
+  if (role === "admin") {
+    return "/admin/containers"; // Or just /admin if it exists, checking project structure
   }
 
   return "/dashboard";
@@ -22,23 +28,29 @@ export function getNavigationItems(snapshot: AuthSnapshot | null): NavigationIte
     return [];
   }
 
-  if (snapshot.appUser.role === "student") {
-    return [{ href: "/scan", label: "Scan" }];
-  }
+  const role = snapshot.appUser.role;
 
-  if (
-    snapshot.appUser.role === "teacher" ||
-    snapshot.appUser.role === "homeroom"
-  ) {
+  if (role === "student") {
     return [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/teacher/approve", label: "Approval" }
+      { href: "/scan", label: "Scan" },
+      { href: "/history", label: "Histori" }
     ];
   }
 
-  return [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/admin/containers", label: "Container" },
-    { href: "/admin/audit", label: "Audit" }
-  ];
+  if (role === "teacher" || role === "homeroom") {
+    return [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/teacher/approve", label: "Approve" }
+    ];
+  }
+
+  if (role === "admin") {
+    return [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/admin/containers", label: "Containers" },
+      { href: "/admin/audit", label: "Audit" }
+    ];
+  }
+
+  return [];
 }
