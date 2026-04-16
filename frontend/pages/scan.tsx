@@ -6,6 +6,7 @@ import { Layout } from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
 import { getDefaultRoute } from "../lib/navigation";
 import { MobileScannerShell } from "../scanner/MobileScannerShell";
+import { Card, CardHeader, CardContent } from "../components/ui/Card";
 
 export default function ScanPage() {
   const { isReady, session, snapshot } = useAuth();
@@ -31,27 +32,29 @@ export default function ScanPage() {
           studentNis={snapshot.student.nis}
         />
       ) : (
-        <section className="content-panel">
-          <div className="panel-header">
+        <Card className="content-panel">
+          <CardHeader>
             <span className="panel-tag">Akses Scan</span>
             <h2>Halaman ini khusus untuk siswa yang sudah terhubung</h2>
-          </div>
-          <p className="lead compact-lead">
-            Login sebagai siswa, lalu pastikan akun tersebut sudah dihubungkan
-            ke data siswa oleh admin sekolah.
-          </p>
-          <div className="button-row compact-button-row">
-            <Link className="primary-button" href="/login">
-              Buka login
-            </Link>
-          </div>
-          {session && snapshot && !snapshot.student ? (
-            <p className="session-meta">
-              Sesi Anda sudah aktif, tetapi akun ini belum terhubung ke data siswa.
-              Minta admin sekolah untuk menghubungkannya lebih dulu.
+          </CardHeader>
+          <CardContent>
+            <p className="lead compact-lead">
+              Login sebagai siswa, lalu pastikan akun tersebut sudah dihubungkan
+              ke data siswa oleh admin sekolah.
             </p>
-          ) : null}
-        </section>
+            <div className="button-row compact-button-row">
+              <Link className="primary-button" href="/login">
+                Buka login
+              </Link>
+            </div>
+            {session && snapshot && !snapshot.student ? (
+              <p className="session-meta">
+                Sesi Anda sudah aktif, tetapi akun ini belum terhubung ke data siswa.
+                Minta admin sekolah untuk menghubungkannya lebih dulu.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
       )}
     </Layout>
   );

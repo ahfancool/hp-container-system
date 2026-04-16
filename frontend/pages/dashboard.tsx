@@ -13,20 +13,16 @@ import {
   type DashboardStatusResponse
 } from "../lib/dashboard";
 
+import { 
+  formatDateTime, 
+  formatRelativeTime 
+} from "../lib/format";
+import { translateError } from "../lib/errors";
+
 type DashboardStudentStatus = DashboardStatusResponse["students"]["inside"][number];
 
 const AUTO_REFRESH_MS = 30_000;
 const ALL_CLASSES_VALUE = "__ALL_CLASSES__";
-
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
-}
 
 function matchesSearch(student: DashboardStudentStatus, query: string): boolean {
   const normalized = query.trim().toLowerCase();
@@ -63,7 +59,7 @@ function filterStudents(
 
 function getStatusLabel(status: DashboardStudentStatus["phoneStatus"]): string {
   if (status === "INSIDE") {
-    return "Di container";
+    return "Di kontainer";
   }
 
   if (status === "OUTSIDE") {
@@ -180,15 +176,16 @@ export default function DashboardPage() {
       if (mode === "refresh" && !isPaused) {
         // Silent success for auto-refresh
       } else if (mode === "refresh") {
-        showToast.success("Dashboard diperbarui");
+        showToast.success("Data monitoring diperbarui");
       }
     } catch (loadError) {
-      const message =
+      const message = translateError(
         loadError instanceof Error
           ? loadError.message
-          : "Gagal memuat dashboard monitoring.";
-      setError(message);
-      showToast.error(message);
+          : "Gagal memuat data monitoring."
+      );
+      setError(message || "");
+      showToast.error(message || "");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -219,9 +216,7 @@ export default function DashboardPage() {
 
   const getTimeAgo = () => {
     if (!lastUpdated) return "";
-    const seconds = Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000);
-    if (seconds < 5) return "baru saja";
-    return `${seconds} detik lalu`;
+    return formatRelativeTime(lastUpdated);
   };
 
   const [timeAgoText, setTimeAgo] = useState("");
@@ -279,35 +274,35 @@ export default function DashboardPage() {
       : Number(((insideCount / displayedTotalStudents) * 100).toFixed(1));
 
   const heroTitle = isAdmin
-    ? "Pantau kondisi HP seluruh sekolah dari satu dashboard."
+    ? "Pantau kondisi HP seluruh sekolah dari satu dasbor."
     : "Pantau status HP siswa dan ambil tindakan cepat saat perlu.";
 
   const heroLead = isAdmin
-    ? "Dashboard ini membantu admin melihat ringkasan sekolah, aktivitas terbaru, dan area yang perlu ditindaklanjuti."
-    : "Gunakan dashboard ini untuk melihat status HP siswa, mencari kelas tertentu, dan lanjut ke approval saat diperlukan.";
+    ? "Dasbor ini membantu admin melihat ringkasan sekolah, aktivitas terbaru, dan area yang perlu ditindaklanjuti."
+    : "Gunakan dasbor ini untuk melihat status HP siswa, mencari kelas tertentu, dan lanjut ke perizinan saat diperlukan.";
 
   return (
     <Layout
-      title="Dashboard Monitoring"
-      eyebrow="Milestone 7: Monitoring Dashboard"
+      title="Monitoring HP"
+      eyebrow={isAdmin ? "Panel Admin" : "Akses Guru"}
     >
       {!isReady ? (
         <section className="content-panel">
-          <p className="lead compact-lead">Memeriksa sesi login staff...</p>
+          <p className="lead compact-lead">Memeriksa sesi login staf...</p>
         </section>
       ) : !session || !snapshot ? (
         <section className="content-panel">
           <div className="panel-header">
             <span className="panel-tag">Login Dibutuhkan</span>
-            <h2>Dashboard ini hanya untuk teacher, homeroom, atau admin</h2>
+            <h2>Halaman ini hanya untuk guru, wali kelas, atau admin</h2>
           </div>
           <p className="lead compact-lead">
-            Login dengan akun staff agar sistem bisa memuat status HP siswa dari
-            database transaksi.
+            Masuk dengan akun staf agar sistem bisa memuat status HP siswa dari
+            riwayat transaksi.
           </p>
           <div className="button-row compact-button-row">
             <Link className="primary-button" href="/login">
-              Buka login
+              Buka halaman login
             </Link>
           </div>
         </section>
@@ -315,14 +310,14 @@ export default function DashboardPage() {
         <section className="content-panel">
           <div className="panel-header">
             <span className="panel-tag">Akses Ditolak</span>
-            <h2>Role saat ini tidak memiliki akses dashboard</h2>
+            <h2>Peran Anda tidak memiliki akses ke halaman monitoring</h2>
           </div>
           <p className="lead compact-lead">
-            Dashboard monitoring dibatasi untuk `teacher`, `homeroom`, dan `admin`.
+            Monitoring dibatasi khusus untuk `teacher`, `homeroom`, dan `admin`.
           </p>
           <div className="button-row compact-button-row">
             <Link className="secondary-button" href={getDefaultRoute(snapshot)}>
-              Buka halaman utama
+              Kembali ke beranda
             </Link>
           </div>
         </section>
@@ -330,7 +325,7 @@ export default function DashboardPage() {
         <>
           <section className="hero-grid">
             <div className="hero-copy">
-              <p className="kicker">{isAdmin ? "Dashboard Sekolah" : "Dashboard Guru"}</p>
+              <p className="kicker">{isAdmin ? "Dasbor Sekolah" : "Dasbor Guru"}</p>
               <h1>{heroTitle}</h1>
               <p className="lead">{heroLead}</p>
               <div className="button-row">
@@ -342,45 +337,45 @@ export default function DashboardPage() {
                   }}
                   type="button"
                 >
-                  {isRefreshing ? "Menyegarkan..." : "Refresh dashboard"}
+                  {isRefreshing ? "Menyegarkan..." : "Segarkan dasbor"}
                 </button>
                 <button
                   className="secondary-button"
                   onClick={() => setIsPaused(!isPaused)}
                   type="button"
                 >
-                  {isPaused ? "Lanjutkan Auto" : "Jeda Auto"}
+                  {isPaused ? "Lanjutkan Otomatis" : "Jeda Otomatis"}
                 </button>
                 {isAdmin ? (
                   <Link className="secondary-button" href="/admin/audit">
-                    Buka audit
+                    Buka log audit
                   </Link>
                 ) : (
                   <Link className="secondary-button" href="/teacher/approve">
-                    Buka approval
+                    Buka izin guru
                   </Link>
                 )}
               </div>
             </div>
             <div className="signal-panel">
               <div className="flex justify-between items-start">
-                <span className="signal-label">Ringkasan Sekolah</span>
+                <span className="signal-label">Ringkasan Sistem</span>
                 {!isPaused && (
                   <span className={`live-indicator ${isRefreshing ? 'is-refreshing' : ''}`}>
-                    Live
+                    Aktif
                   </span>
                 )}
               </div>
               <strong>
                 {dashboard
-                  ? `${dashboard.summary.insideCount} HP masih di container`
-                  : "Memuat dashboard"}
+                  ? `${dashboard.summary.insideCount} HP tersimpan`
+                  : "Menghubungkan..."}
               </strong>
               <p>
                 {lastUpdated
                   ? `Diperbarui ${timeAgoText}.`
-                  : "Menghubungkan dashboard ke backend monitoring."}
-                {!isPaused && ` Auto-refresh ${refreshInterval / 1000}s.`}
+                  : "Menghubungkan dasbor ke sistem monitoring."}
+                {!isPaused && ` Refresh otomatis tiap ${refreshInterval / 1000} detik.`}
               </p>
               {dashboard ? (
                 <>
@@ -413,28 +408,28 @@ export default function DashboardPage() {
             <>
               <section className="card-grid">
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Phones in container</span>
+                  <span className="panel-tag">HP di Kontainer</span>
                   <strong className="status-value">{dashboard.summary.insideCount}</strong>
                   <p className="status-detail">
-                    Siswa yang HP-nya tersimpan aman di dalam container.
+                    Siswa yang HP-nya tersimpan aman di dalam kontainer.
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Phones outside</span>
+                  <span className="panel-tag">HP di Luar</span>
                   <strong className="status-value">{dashboard.summary.outsideCount}</strong>
                   <p className="status-detail">
                     Siswa yang sedang memegang HP (sudah ambil).
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Not scanned</span>
+                  <span className="panel-tag">Belum Scan</span>
                   <strong className="status-value">{dashboard.summary.notScannedCount}</strong>
                   <p className="status-detail">
                     Siswa yang belum melakukan scan hari ini.
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Emergency active</span>
+                  <span className="panel-tag">Darurat Aktif</span>
                   <strong className="status-value">{dashboard.summary.emergencyReleaseCount}</strong>
                   <p className="status-detail">
                     HP yang keluar lewat jalur darurat dan belum kembali.
@@ -475,13 +470,13 @@ export default function DashboardPage() {
                       value={selectedStatus}
                     >
                       <option value="ALL">Semua status</option>
-                      <option value="INSIDE">Di container</option>
+                      <option value="INSIDE">Di kontainer</option>
                       <option value="OUTSIDE">Di luar</option>
                       <option value="NOT_SCANNED">Belum scan</option>
                     </select>
                   </label>
                   <label className="field-group">
-                    <span>Filter container</span>
+                    <span>Filter kontainer</span>
                     <select
                       className="text-input select-input"
                       onChange={(event) => {
@@ -489,7 +484,7 @@ export default function DashboardPage() {
                       }}
                       value={selectedContainerId}
                     >
-                      <option value="ALL">Semua container</option>
+                      <option value="ALL">Semua kontainer</option>
                       {containerOptions.map((container) => (
                         <option key={container.id} value={container.id}>
                           {container.name} ({container.location})
@@ -543,7 +538,7 @@ export default function DashboardPage() {
                         </div>
                         <p className="container-meta">NIS {student.nis}</p>
                         <p className="container-meta">
-                          Container: {student.pendingApproval?.container.name} |{" "}
+                          Kontainer: {student.pendingApproval?.container.name} |{" "}
                           {student.pendingApproval?.container.location}
                         </p>
                         <p className="container-meta">
@@ -559,7 +554,7 @@ export default function DashboardPage() {
                   {canApprove ? (
                     <div className="button-row compact-button-row">
                       <Link className="secondary-button" href="/teacher/approve">
-                        Kelola approval
+                        Kelola perizinan
                       </Link>
                     </div>
                   ) : null}
@@ -606,11 +601,11 @@ export default function DashboardPage() {
                       <span className="summary-label">{item.className}</span>
                       <strong>{item.totalStudents} siswa</strong>
                       <p className="session-meta">
-                        Inside {item.insideCount} | Outside {item.outsideCount} |
+                        Tersimpan {item.insideCount} | Di Luar {item.outsideCount} |
                         Belum scan {item.notScannedCount}
                       </p>
                       <p className="session-meta">
-                        Darurat aktif {item.emergencyReleaseCount} | Approval
+                        Darurat aktif {item.emergencyReleaseCount} | Izin
                         menunggu scan {item.pendingApprovalCount}
                       </p>
                     </article>
@@ -620,15 +615,15 @@ export default function DashboardPage() {
 
               <section className="content-panel">
                 <div className="panel-header">
-                  <span className="panel-tag">Kapasitas Container</span>
-                  <h2>Perkiraan jumlah HP yang masih berada di tiap container</h2>
+                  <span className="panel-tag">Kapasitas Kontainer</span>
+                  <h2>Perkiraan jumlah HP yang masih berada di tiap kontainer</h2>
                 </div>
                 <div className="container-grid">
                   {dashboard.containerSummaries.map((container) => (
                     <article className="container-card" key={container.id}>
                       <div className="container-card-header">
                         <div>
-                          <span className="status-label">Container</span>
+                          <span className="status-label">Kontainer</span>
                           <h3>{container.name}</h3>
                         </div>
                         <span className="role-badge">
@@ -647,7 +642,7 @@ export default function DashboardPage() {
 
               <section className="content-panel">
                 <div className="panel-header">
-                  <span className="panel-tag">Monitoring Table</span>
+                  <span className="panel-tag">Tabel Monitoring</span>
                   <h2>Daftar Status HP Siswa</h2>
                 </div>
                 <div className="activity-table">
@@ -656,7 +651,7 @@ export default function DashboardPage() {
                       <span>Siswa</span>
                     </div>
                     <div className="activity-type-info">
-                      <span>Status & Container</span>
+                      <span>Status & Kontainer</span>
                     </div>
                     <div className="activity-meta-info desktop-only">
                       <span>Terakhir Scan</span>
@@ -758,7 +753,7 @@ export default function DashboardPage() {
                           <span className="session-meta">{formatDateTime(activity.timestamp)}</span>
                         </div>
                         <div className="activity-meta-info desktop-only">
-                          <span className="session-meta">Container: {activity.container.name}</span>
+                          <span className="session-meta">Kontainer: {activity.container.name}</span>
                           <span className="session-meta">
                             Oleh: {activity.operator ? activity.operator.name : "Mandiri"}
                           </span>

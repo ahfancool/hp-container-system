@@ -20,6 +20,8 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
 import { useForm } from "../hooks/useForm";
+import { formatDateTime } from "../lib/format";
+import { translateError } from "../lib/errors";
 
 type MobileScannerShellProps = {
   accessToken: string;
@@ -66,15 +68,6 @@ function stopStream(streamRef: MutableRefObject<MediaStream | null>) {
   streamRef.current = null;
 }
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short"
-  }).format(new Date(value));
-}
-
 function triggerVibration(pattern: number | number[]) {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(pattern);
@@ -82,7 +75,7 @@ function triggerVibration(pattern: number | number[]) {
 }
 
 function getActionLabel(action: "IN" | "OUT"): string {
-  return action === "IN" ? "Simpan HP ke container" : "Ambil HP dari container";
+  return action === "IN" ? "Titipkan HP" : "Ambil HP";
 }
 
 export function MobileScannerShell({
@@ -118,7 +111,6 @@ export function MobileScannerShell({
     values: manualValues,
     errors: manualErrors,
     touched: manualTouched,
-    isValid: isManualValid,
     handleChange: handleManualChange,
     handleBlur: handleManualBlur,
     handleSubmit: handleManualSubmit,
@@ -190,7 +182,7 @@ export function MobileScannerShell({
       setScanTone("preview");
       setPreviewResult({
         authenticatedStudent: { id: studentId, name: studentName, nis: studentNis },
-        message: "Offline mode ready.",
+        message: "Mode offline siap.",
         transactionRecorded: false,
         validation: {
           actionPreview: "IN",
@@ -198,17 +190,17 @@ export function MobileScannerShell({
             createdAt: new Date().toISOString(),
             id: nextContainerId,
             isActive: true,
-            location: "Offline Location",
-            name: "Offline Container",
+            location: "Lokasi Offline",
+            name: "Kontainer Offline",
             qrCode: rawPayload,
             updatedAt: new Date().toISOString()
           },
           lastTransaction: null,
           penaltyStatus: undefined,
           rules: {
-            allowedAt: "Now",
-            currentLocalTime: "Now",
-            endsAt: "Later",
+            allowedAt: "Sekarang",
+            currentLocalTime: "Sekarang",
+            endsAt: "Nanti",
             isAllowed: true,
             scheduleType: "REGULAR_IN",
             timeZone: "WIB"
@@ -246,8 +238,8 @@ export function MobileScannerShell({
         announceToScreenReader(`Scan ditolak. ${result.validation.penaltyStatus?.message || "Tidak sesuai jadwal"}`);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Preview scan gagal.";
-      setPreviewError(message);
+      const message = translateError(error instanceof Error ? error.message : "Preview scan gagal.");
+      setPreviewError(message || "");
       setScanTone("error");
       triggerVibration([50, 40, 50]);
       announceToScreenReader(`Scan gagal. ${message}`);
@@ -371,14 +363,25 @@ export function MobileScannerShell({
       triggerVibration(result.transaction.action === "IN" ? 90 : [60, 40, 60]);
       announceToScreenReader(`Transaksi berhasil. HP telah ${result.transaction.action === "IN" ? "tersimpan" : "diambil"}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Transaksi gagal.";
-      setTransactionError(message);
+      const message = translateError(error instanceof Error ? error.message : "Transaksi gagal.");
+      setTransactionError(message || "");
       setScanTone("error");
       announceToScreenReader(`Transaksi gagal. ${message}`);
     } finally {
       isBusyRef.current = false;
       setIsSubmittingTransaction(false);
     }
+  };
+
+  const handleManualSubmit = async () => {
+    const nextContainerId = extractContainerId(manualValues.manualValue.trim());
+    if (!nextContainerId) {
+      toast.error("Format QR manual tidak valid.");
+      announceToScreenReader("Format QR manual tidak valid.");
+      return;
+    }
+    stopCamera();
+    await runPreview(nextContainerId, manualValues.manualValue.trim());
   };
 
   const lastStatus = previewResult?.validation.lastTransaction?.action || "OUT";
@@ -391,7 +394,7 @@ export function MobileScannerShell({
         <div className="flex items-center justify-between">
           <span className="panel-tag">Status HP Saat Ini</span>
           <Badge variant={lastStatus === "IN" ? "primary" : "outline"}>
-            {lastStatus === "IN" ? "Terdata di Container" : "Ada pada Siswa"}
+            {lastStatus === "IN" ? "Terdata di Kontainer" : "Ada pada Siswa"}
           </Badge>
         </div>
         <div className="flex flex-col gap-1">
@@ -536,7 +539,7 @@ export function MobileScannerShell({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-muted uppercase">Container</span>
+                <span className="text-xs font-bold text-muted uppercase">Kontainer</span>
                 <span className="font-semibold">{previewResult.validation.container.name}</span>
               </div>
               <div className="flex flex-col gap-1">
@@ -597,7 +600,7 @@ export function MobileScannerShell({
                   <span className="font-bold">{transactionResult ? formatDateTime(transactionResult.transaction.timestamp) : formatDateTime(new Date().toISOString())}</span>
                 </div>
                 <div className="flex flex-col col-span-2">
-                  <span className="text-[10px] font-bold text-muted uppercase">Container</span>
+                  <span className="text-[10px] font-bold text-muted uppercase">Kontainer</span>
                   <span className="font-bold">{transactionResult?.validation.container.name || previewResult?.validation.container.name}</span>
                 </div>
              </div>

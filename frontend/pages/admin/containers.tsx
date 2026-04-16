@@ -19,15 +19,8 @@ import { getDefaultRoute } from "../../lib/navigation";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 import { downloadQrAsPng, downloadQrAsSvg } from "../../lib/qr-utils";
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
-}
+import { formatDateTime } from "../../lib/format";
+import { translateError } from "../../lib/errors";
 
 function buildQrFilename(name: string, ext: "png" | "svg"): string {
   const normalized = name
@@ -35,7 +28,7 @@ function buildQrFilename(name: string, ext: "png" | "svg"): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  return `${normalized || "container"}-qr.${ext}`;
+  return `${normalized || "kontainer"}-qr.${ext}`;
 }
 
 function MiniQrPreview({ qrCode }: { qrCode: string }) {
@@ -149,9 +142,9 @@ export default function AdminContainersPage() {
         });
         setContainers((current) => [created, ...current]);
         resetForm();
-        showToast.success(`Container ${created.name} berhasil dibuat`);
+        showToast.success(`Kontainer ${created.name} berhasil dibuat`);
       } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : "Gagal membuat container.");
+        setError(translateError(submitError instanceof Error ? submitError.message : "Gagal membuat kontainer."));
         throw submitError;
       }
     }
@@ -171,7 +164,7 @@ export default function AdminContainersPage() {
       const items = await fetchContainers(session.access_token, true);
       setContainers(items);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Gagal memuat daftar container.");
+      setError(translateError(loadError instanceof Error ? loadError.message : "Gagal memuat daftar kontainer."));
     } finally {
       setIsLoading(false);
     }
@@ -205,9 +198,9 @@ export default function AdminContainersPage() {
       if (updateError) throw updateError;
 
       setContainers(current => current.map(c => c.id === id ? { ...c, ...updates } : c));
-      showToast.success("Container berhasil diperbarui");
+      showToast.success("Kontainer berhasil diperbarui");
     } catch (e) {
-      showToast.error(e instanceof Error ? e.message : "Gagal memperbarui container");
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal memperbarui kontainer"));
     }
   };
 
@@ -223,10 +216,10 @@ export default function AdminContainersPage() {
       if (deleteError) throw deleteError;
 
       setContainers(current => current.filter(c => c.id !== deleteTarget.id));
-      showToast.success(`Container ${deleteTarget.name} berhasil dihapus`);
+      showToast.success(`Kontainer ${deleteTarget.name} berhasil dihapus`);
       setDeleteTarget(null);
     } catch (e) {
-      showToast.error(e instanceof Error ? e.message : "Gagal menghapus container");
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal menghapus kontainer"));
     }
   };
 
@@ -236,14 +229,14 @@ export default function AdminContainersPage() {
     try {
       const updated = await rotateContainerQrTokenRequest(session.access_token, container.id);
       setContainers((current) => current.map((c) => (c.id === updated.id ? updated : c)));
-      showToast.success(`Token QR untuk ${container.name} berhasil di-reset`);
+      showToast.success(`Token QR untuk ${container.name} berhasil diperbarui`);
     } catch (e) {
-      showToast.error(e instanceof Error ? e.message : "Gagal me-reset token QR");
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal me-reset token QR"));
     }
   };
 
   return (
-    <Layout title="Manajemen Container" eyebrow="Admin Panel">
+    <Layout title="Manajemen Kontainer" eyebrow="Panel Admin">
       {!isReady ? (
         <section className="content-panel"><p className="lead">Memeriksa sesi...</p></section>
       ) : !session || !snapshot || !isAdmin ? (
@@ -253,18 +246,18 @@ export default function AdminContainersPage() {
           <section className="hero-grid">
             <div className="content-panel">
               <div className="panel-header">
-                <span className="panel-tag">Tambah Container</span>
-                <h2>Buat registry container baru</h2>
+                <span className="panel-tag">Tambah Kontainer</span>
+                <h2>Registrasi kontainer baru</h2>
               </div>
               <form className="auth-form" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Nama container"
+                    label="Nama kontainer"
                     value={values.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                     onBlur={() => handleBlur("name")}
                     error={touched.name ? errors.name : undefined}
-                    placeholder="Contoh: Container A"
+                    placeholder="Contoh: Kontainer A"
                     required
                   />
                   <Input
@@ -282,32 +275,32 @@ export default function AdminContainersPage() {
                   isLoading={isSubmittingForm} 
                   type="submit"
                   disabled={!isValid || isSubmittingForm}
-                  title={!isValid ? "Harap lengkapi form dengan benar" : ""}
+                  title={!isValid ? "Harap lengkapi formulir dengan benar" : ""}
                 >
-                  Tambah Container
+                  Tambah Kontainer
                 </Button>
                 {error && <p className="form-error">{error}</p>}
               </form>
             </div>
 
             <div className="signal-panel">
-              <span className="signal-label">Registry</span>
+              <span className="signal-label">Data Kontainer</span>
               <strong>{containers.length}</strong>
-              <p>Container aktif yang terdaftar.</p>
-              <Button variant="secondary" size="sm" onClick={loadContainers} aria-label="Muat ulang daftar container">Muat ulang</Button>
+              <p>Kontainer aktif yang terdaftar.</p>
+              <Button variant="secondary" size="sm" onClick={loadContainers} aria-label="Muat ulang daftar kontainer">Muat ulang</Button>
             </div>
           </section>
 
           <section className="content-panel overflow-hidden">
             <div className="panel-header">
-              <span className="panel-tag">Daftar Registry</span>
-              <h2>Manajemen Container</h2>
+              <span className="panel-tag">Daftar Registrasi</span>
+              <h2>Manajemen Kontainer</h2>
             </div>
 
             {isLoading ? (
               <TableSkeleton rows={5} cols={5} />
             ) : containers.length === 0 ? (
-              <EmptyState title="Kosong" description="Belum ada container." />
+              <EmptyState title="Kosong" description="Belum ada kontainer yang terdaftar." />
             ) : (
               <div className="activity-table">
                 <div className="activity-row font-bold bg-surface-strong" role="row">
@@ -333,7 +326,7 @@ export default function AdminContainersPage() {
                       <button 
                         onClick={() => setQrTarget(container)} 
                         className="hover:opacity-80 transition-opacity"
-                        aria-label={`Lihat QR Code untuk ${container.name}`}
+                        aria-label={`Lihat Kode QR untuk ${container.name}`}
                       >
                         <MiniQrPreview qrCode={container.qrCode} />
                       </button>
@@ -347,7 +340,7 @@ export default function AdminContainersPage() {
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button variant="secondary" size="sm" onClick={() => setQrTarget(container)} aria-label={`Detail QR ${container.name}`}>QR</Button>
-                      <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleteTarget(container)} aria-label={`Hapus container ${container.name}`}>Hapus</Button>
+                      <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleteTarget(container)} aria-label={`Hapus kontainer ${container.name}`}>Hapus</Button>
                     </div>
                   </div>
                 ))}
@@ -367,20 +360,20 @@ export default function AdminContainersPage() {
               </div>
             }
           >
-            <p>Anda yakin ingin menghapus container <strong>{deleteTarget?.name}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
+            <p>Anda yakin ingin menghapus kontainer <strong>{deleteTarget?.name}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
           </Modal>
 
           {/* QR Modal */}
           <Modal
             isOpen={!!qrTarget}
             onClose={() => setQrTarget(null)}
-            title={`QR Code: ${qrTarget?.name}`}
+            title={`Kode QR: ${qrTarget?.name}`}
             footer={
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="secondary" onClick={() => rotateContainerQrTokenRequest(session!.access_token, qrTarget!.id).then(loadContainers)}>Reset Token</Button>
+                <Button variant="secondary" onClick={() => handleRotateToken(qrTarget!)}>Perbarui Token</Button>
                 <Button variant="secondary" onClick={() => navigator.clipboard.writeText(qrTarget!.qrCode).then(() => showToast.success("Payload disalin"))}>Salin Payload</Button>
-                <Button onClick={() => downloadQrAsPng(qrTarget!.qrCode, buildQrFilename(qrTarget!.name, "png"))}>Download PNG</Button>
-                <Button onClick={() => downloadQrAsSvg(qrTarget!.qrCode, buildQrFilename(qrTarget!.name, "svg"))}>Download SVG</Button>
+                <Button onClick={() => downloadQrAsPng(qrTarget!.qrCode, buildQrFilename(qrTarget!.name, "png"))}>Unduh PNG</Button>
+                <Button onClick={() => downloadQrAsSvg(qrTarget!.qrCode, buildQrFilename(qrTarget!.name, "svg"))}>Unduh SVG</Button>
               </div>
             }
           >
@@ -397,3 +390,4 @@ export default function AdminContainersPage() {
     </Layout>
   );
 }
+

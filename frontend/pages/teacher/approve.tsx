@@ -27,6 +27,8 @@ import { getDefaultRoute } from "../../lib/navigation";
 
 import { useForm } from "../../hooks/useForm";
 import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
+import { formatDateTime } from "../../lib/format";
+import { translateError } from "../../lib/errors";
 
 type ApprovalType = "PEMBELAJARAN" | "DARURAT";
 type VirtualizedGridRowProps = {
@@ -56,19 +58,9 @@ const approvalOptions: Array<{
   }
 ];
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
-}
-
 function getPhoneStatusLabel(status: StudentApprovalRecord["phoneStatus"]): string {
   if (status === "INSIDE") {
-    return "Di container";
+    return "Di kontainer";
   }
 
   if (status === "OUTSIDE") {
@@ -142,8 +134,8 @@ const StudentOptionCard = React.memo(({
       ) : (
         <p className="session-meta" style={{ marginBottom: "12px", minHeight: "2.4em" }}>
           {isSelectable 
-            ? "Siap untuk mendapatkan approval keluar." 
-            : "Belum bisa approval (HP tidak di dalam container)."}
+            ? "Siap untuk mendapatkan approval pelepasan." 
+            : "Belum bisa (HP tidak ada di kontainer)."}
         </p>
       )}
 

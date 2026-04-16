@@ -152,7 +152,7 @@ const GlobalSearch: React.FC = () => {
               <kbd>↑</kbd> Navigasi
             </span>
           </div>
-          <span className="search-badge">Global Search</span>
+          <span className="search-badge">Pencarian Global</span>
         </div>
       </div>
     </div>

@@ -5,6 +5,9 @@ import { fetchViolations, resolveViolationRequest, type StudentViolation } from 
 import { toast } from "sonner";
 import { CardSkeleton, ListSkeleton } from "../../components/Skeleton";
 
+import { formatDateTime } from "../../lib/format";
+import { translateError } from "../../lib/errors";
+
 export default function RedListPage() {
   const { session, snapshot } = useAuth();
   const [violations, setViolations] = useState<StudentViolation[]>([]);
@@ -22,7 +25,7 @@ export default function RedListPage() {
       });
       setViolations(data);
     } catch (e) {
-      toast.error("Gagal memuat daftar pelanggaran");
+      toast.error(translateError(e instanceof Error ? e.message : "Gagal memuat daftar pelanggaran"));
     } finally {
       setIsLoading(false);
     }
@@ -39,29 +42,17 @@ export default function RedListPage() {
       toast.success("Pelanggaran ditandai sebagai selesai");
       loadViolations();
     } catch (e) {
-      toast.error("Gagal menyelesaikan pelanggaran");
+      toast.error(translateError(e instanceof Error ? e.message : "Gagal menyelesaikan pelanggaran"));
     }
   };
 
-  function formatDateTime(value: string): string {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      month: "short",
-      year: "numeric"
-    }).format(new Date(value));
-  }
-
   const getPenaltyType = (v: StudentViolation) => {
-    // Basic logic: count student's unresolved violations in the list (this is a simplified client-side check)
-    // In a real app, the server would provide the effective penalty type.
     return v.resolvedAt ? "Selesai" : "Aktif";
   };
 
   if (!isStaff) {
     return (
-      <Layout title="Akses Ditolak" eyebrow="Milestone 24: Violation & Penalty">
+      <Layout title="Akses Ditolak" eyebrow="Pelanggaran & Penalti">
         <section className="content-panel">
           <p className="lead compact-lead">Anda tidak memiliki izin untuk melihat halaman ini.</p>
         </section>
@@ -70,7 +61,7 @@ export default function RedListPage() {
   }
 
   return (
-    <Layout title="Red List - Kedisiplinan Siswa" eyebrow="Milestone 24: Violation & Penalty">
+    <Layout title="Red List - Kedisiplinan Siswa" eyebrow="Pelanggaran & Penalti">
       <section className="hero-grid">
         <div className="content-panel">
           <div className="panel-header">

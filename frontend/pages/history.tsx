@@ -9,6 +9,8 @@ import { useAuth } from "../context/AuthContext";
 import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 import { getDefaultRoute } from "../lib/navigation";
 
+import { formatDateTime, formatLongDate } from "../lib/format";
+
 type Transaction = {
   id: string;
   action: "IN" | "OUT";
@@ -49,7 +51,7 @@ export default function HistoryPage() {
         .order("timestamp", { ascending: false });
 
       if (error) {
-        console.error("Gagal memuat histori:", error);
+        console.error("Gagal memuat riwayat:", error);
       } else {
         setTransactions((data as any[]) || []);
       }
@@ -65,7 +67,6 @@ export default function HistoryPage() {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // For week, we'll use last 7 days for simplicity or current week
     const startOfWeek = new Date(startOfToday);
     startOfWeek.setDate(startOfToday.getDate() - 7);
 
@@ -97,24 +98,14 @@ export default function HistoryPage() {
 
   const getBadgeClass = (action: string, type: string) => {
     if (action === "IN") return "status-inside";
-    if (type === "PEMBELAJARAN") return "status-outside"; // blue in our mapping
-    if (type === "DARURAT") return "status-danger"; // red
-    return "status-pending"; // orange for OUT REGULAR
-  };
-
-  const formatDateTime = (isoString: string) => {
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(isoString));
+    if (type === "PEMBELAJARAN") return "status-outside";
+    if (type === "DARURAT") return "status-danger";
+    return "status-pending";
   };
 
   if (!isReady) {
     return (
-      <Layout title="Histori Transaksi" eyebrow="Memuat...">
+      <Layout title="Riwayat Transaksi" eyebrow="Memuat...">
         <div className="flex flex-col gap-4">
           <Skeleton height="100px" />
           <Skeleton height="200px" />
@@ -125,7 +116,7 @@ export default function HistoryPage() {
 
   if (!session || !snapshot || snapshot.appUser.role !== "student") {
     return (
-      <Layout title="Akses Ditolak" eyebrow="Histori">
+      <Layout title="Akses Ditolak" eyebrow="Riwayat">
         <Card className="p-8 text-center">
           <p className="lead">Halaman ini hanya untuk siswa.</p>
           <div className="button-row justify-center">
@@ -139,7 +130,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <Layout title="Histori Transaksi" eyebrow="Siswa">
+    <Layout title="Riwayat Transaksi" eyebrow="Siswa">
       <div className="flex flex-col gap-8">
         <section className="hero-grid">
           <Card className="p-8">
@@ -152,7 +143,7 @@ export default function HistoryPage() {
               <p className="lead mb-2">Hari HP dititipkan</p>
             </div>
             <p className="session-meta mt-4">
-              Total hari unik di mana kamu melakukan scan masuk ke container pada bulan ini.
+              Total hari unik di mana kamu melakukan scan masuk ke kontainer pada bulan ini.
             </p>
           </Card>
 
@@ -190,7 +181,7 @@ export default function HistoryPage() {
         <section className="content-panel">
           <div className="panel-header">
             <span className="panel-tag">Daftar Transaksi</span>
-            <h2>Histori Penggunaan Container</h2>
+            <h2>Riwayat Penggunaan Kontainer</h2>
           </div>
 
           {isLoading ? (
@@ -202,7 +193,7 @@ export default function HistoryPage() {
           ) : filteredTransactions.length === 0 ? (
             <EmptyState 
               title="Belum ada transaksi" 
-              description="Kamu belum memiliki histori transaksi untuk periode ini."
+              description="Kamu belum memiliki riwayat transaksi untuk periode ini."
             />
           ) : (
             <div className="activity-table">
@@ -213,13 +204,13 @@ export default function HistoryPage() {
                       {t.action === 'IN' ? '↓' : '↑'}
                     </div>
                     <div className="activity-student-info">
-                      <strong>{t.container?.name || "Unknown Container"}</strong>
+                      <strong>{t.container?.name || "Kontainer Tidak Diketahui"}</strong>
                       <span className="session-meta">{formatDateTime(t.timestamp)}</span>
                     </div>
                   </div>
                   <div className="activity-type-info">
                     <span className={`status-badge ${getBadgeClass(t.action, t.type)}`}>
-                      {t.action === 'IN' ? 'MASUK' : `KELUAR ${t.type !== 'REGULAR' ? t.type : ''}`}
+                      {t.action === 'IN' ? 'TITIPKAN HP' : `AMBIL HP ${t.type !== 'REGULAR' ? t.type : ''}`}
                     </span>
                   </div>
                   <div className="activity-meta-info desktop-only text-right">

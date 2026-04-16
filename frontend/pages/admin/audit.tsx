@@ -10,15 +10,7 @@ import { TableSkeleton } from "../../components/ui/Skeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
-}
+import { formatDateTime } from "../../lib/format";
 
 function getSeverityClass(severity: AuditLogRecord["severity"]): string {
   if (severity === "ERROR") {
@@ -183,7 +175,7 @@ export default function AdminAuditPage() {
   };
 
   return (
-    <Layout title="Audit Log" eyebrow="Security Audit">
+    <Layout title="Log Audit Keamanan" eyebrow="Panel Admin">
       {!isReady ? (
         <section className="content-panel"><p className="lead">Memeriksa sesi...</p></section>
       ) : !session || !snapshot || !canAuditLogs ? (
@@ -194,32 +186,32 @@ export default function AdminAuditPage() {
             <div className="content-panel">
               <div className="panel-header">
                 <span className="panel-tag">Filter Audit</span>
-                <h2>Pencarian Log Keamanan</h2>
+                <h2>Pencarian Riwayat Aktivitas</h2>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <div className="field-group">
-                  <label htmlFor="filter-severity">Severity</label>
+                  <label htmlFor="filter-severity">Tingkat Bahaya (Severity)</label>
                   <select id="filter-severity" className="text-input select-input" value={severity} onChange={e => setSeverity(e.target.value as any)} aria-label="Filter berdasarkan severity">
                     <option value="">Semua</option>
-                    <option value="INFO">INFO</option>
-                    <option value="WARN">WARN</option>
-                    <option value="ERROR">ERROR</option>
+                    <option value="INFO">INFO (Informasi)</option>
+                    <option value="WARN">WARN (Peringatan)</option>
+                    <option value="ERROR">ERROR (Bahaya)</option>
                   </select>
                 </div>
                 <div className="field-group">
-                  <label htmlFor="filter-role">Role Aktor</label>
+                  <label htmlFor="filter-role">Peran Aktor</label>
                   <select id="filter-role" className="text-input select-input" value={actorRole} onChange={e => setActorRole(e.target.value)} aria-label="Filter berdasarkan role aktor">
-                    <option value="">Semua Role</option>
-                    <option value="admin">Admin</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="homeroom">Homeroom</option>
-                    <option value="student">Student</option>
-                    <option value="system">System</option>
+                    <option value="">Semua Peran</option>
+                    <option value="admin">Administrator</option>
+                    <option value="teacher">Guru</option>
+                    <option value="homeroom">Wali Kelas</option>
+                    <option value="student">Siswa</option>
+                    <option value="system">Sistem</option>
                   </select>
                 </div>
                 <div className="field-group">
-                  <label htmlFor="filter-user">Aktor Spesifik</label>
+                  <label htmlFor="filter-user">Pengguna Spesifik</label>
                   <select id="filter-user" className="text-input select-input" value={actorUserId} onChange={e => setActorUserId(e.target.value)} aria-label="Filter berdasarkan aktor spesifik">
                     <option value="">Semua Pengguna</option>
                     {users.map(u => (
@@ -236,7 +228,7 @@ export default function AdminAuditPage() {
                   <input id="filter-date-to" type="date" className="text-input" value={dateTo} onChange={e => setDateTo(e.target.value)} aria-label="Filter sampai tanggal" />
                 </div>
                 <div className="field-group">
-                  <label htmlFor="filter-event">Event Type</label>
+                  <label htmlFor="filter-event">Tipe Aktivitas</label>
                   <input id="filter-event" className="text-input" value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Contoh: auth.login" aria-label="Cari berdasarkan tipe event" />
                 </div>
               </div>
@@ -245,13 +237,13 @@ export default function AdminAuditPage() {
                 <Button isLoading={isLoading} onClick={() => loadLogs(false)}>Terapkan Filter</Button>
                 <Button variant="ghost" onClick={clearFilters}>Hapus Filter</Button>
               </div>
-              {error && <p className="form-error mt-2">{error}</p>}
+              {error && <p className="form-error mt-2">{translateError(error)}</p>}
             </div>
 
             <div className="signal-panel">
               <span className="signal-label">Ringkasan</span>
               <strong>{total} log</strong>
-              <p>Ditemukan berdasarkan filter saat ini.</p>
+              <p>Ditemukan berdasarkan filter yang Anda pilih.</p>
             </div>
           </section>
 
@@ -264,7 +256,7 @@ export default function AdminAuditPage() {
             {isLoading ? (
               <TableSkeleton cols={4} rows={10} />
             ) : items.length === 0 ? (
-              <EmptyState title="Tidak ada log" description="Coba sesuaikan filter Anda." />
+              <EmptyState title="Tidak ada log" description="Coba sesuaikan filter pencarian Anda." />
             ) : (
               <div className="activity-list flex flex-col gap-4">
                 {items.map((record) => (

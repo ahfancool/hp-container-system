@@ -6,6 +6,8 @@ import { useRouter } from "next/router";
 import { useForm } from "../hooks/useForm";
 import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 
+import { translateError } from "../lib/errors";
+
 const AUTH_ERROR_MAP: Record<string, string> = {
   "Invalid login credentials": "Email atau password salah. Silakan coba lagi.",
   "Email not confirmed": "Email belum dikonfirmasi. Silakan cek inbox Anda.",
@@ -15,13 +17,7 @@ const AUTH_ERROR_MAP: Record<string, string> = {
 
 function mapAuthError(message: string | null): string | null {
   if (!message) return null;
-  
-  // Specific check for inactive account from backend response
-  if (message.includes("STUDENT_NOT_ACTIVE") || message.includes("ACCOUNT_INACTIVE")) {
-    return AUTH_ERROR_MAP["Inactive account"];
-  }
-
-  return AUTH_ERROR_MAP[message] ?? "Gagal masuk. Silakan periksa kembali kredensial Anda.";
+  return translateError(message);
 }
 
 export function LoginForm() {

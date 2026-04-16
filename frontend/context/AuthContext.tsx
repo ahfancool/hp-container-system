@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(
           authError instanceof Error
             ? authError.message
-            : "Gagal memuat profil login."
+            : "Gagal memuat profil pengguna."
         );
       } finally {
         if (!isActive) {

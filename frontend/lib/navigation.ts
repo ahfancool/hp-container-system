@@ -32,23 +32,23 @@ export function getNavigationItems(snapshot: AuthSnapshot | null): NavigationIte
 
   if (role === "student") {
     return [
-      { href: "/scan", label: "Scan" },
-      { href: "/history", label: "Histori" }
+      { href: "/scan", label: "Scan QR" },
+      { href: "/history", label: "Riwayat" }
     ];
   }
 
   if (role === "teacher" || role === "homeroom") {
     return [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/teacher/approve", label: "Approve" }
+      { href: "/dashboard", label: "Monitoring" },
+      { href: "/teacher/approve", label: "Izin Guru" }
     ];
   }
 
   if (role === "admin") {
     return [
-      { href: "/dashboard", label: "Dashboard" },
-      { href: "/admin/containers", label: "Containers" },
-      { href: "/admin/audit", label: "Audit" }
+      { href: "/dashboard", label: "Monitoring" },
+      { href: "/admin/containers", label: "Kontainer" },
+      { href: "/admin/audit", label: "Log Audit" }
     ];
   }
 

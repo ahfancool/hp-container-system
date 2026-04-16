@@ -4,6 +4,8 @@ import { Layout } from "../components/Layout";
 import { RoleBadge } from "../components/RoleBadge";
 import { useAuth } from "../context/AuthContext";
 import { getDefaultRoute } from "../lib/navigation";
+import { Card, CardHeader, CardContent } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
 
 type QuickAction = {
   description: string;
@@ -93,7 +95,7 @@ export default function HomePage() {
   return (
     <Layout title="Sistem HP Sekolah" eyebrow="Beranda">
       <section className="hero-grid">
-        <div className="hero-copy">
+        <Card className="hero-copy">
           <p className="kicker">Operasional Harian</p>
           <h1>{heading}</h1>
           <p className="lead">{lead}</p>
@@ -107,8 +109,8 @@ export default function HomePage() {
               </Link>
             ) : null}
           </div>
-        </div>
-        <div className="signal-panel">
+        </Card>
+        <Card variant="strong">
           <span className="signal-label">Status akun</span>
           <strong>{snapshot ? "Aktif" : "Belum login"}</strong>
           <p>
@@ -123,58 +125,60 @@ export default function HomePage() {
               <strong>{snapshot.student.nis}</strong>
             </p>
           ) : null}
-        </div>
+        </Card>
       </section>
 
-      <section className="content-panel">
-        <div className="panel-header">
+      <Card className="content-panel">
+        <CardHeader>
           <span className="panel-tag">Aksi Cepat</span>
           <h2>Yang bisa dilakukan sekarang</h2>
-        </div>
-        <div className="container-grid">
+        </CardHeader>
+        <CardContent className="container-grid">
           {quickActions.map((item) => (
-            <article className="container-card" key={item.href}>
+            <Card className="container-card" key={item.href}>
               <h3>{item.label}</h3>
               <p className="container-meta">{item.description}</p>
               <Link className="secondary-button compact-button" href={item.href}>
                 Buka
               </Link>
-            </article>
+            </Card>
           ))}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      <section className="content-panel">
-        <div className="panel-header">
+      <Card className="content-panel">
+        <CardHeader>
           <span className="panel-tag">Panduan Singkat</span>
           <h2>Alur yang disederhanakan untuk pengguna sekolah</h2>
-        </div>
-        {!snapshot ? (
-          <p className="lead compact-lead">
-            Setelah login, siswa akan diarahkan ke halaman scan. Guru dan wali kelas
-            diarahkan ke dashboard. Admin diarahkan ke dashboard admin.
-          </p>
-        ) : snapshot.appUser.role === "student" ? (
-          <p className="lead compact-lead">
-            Arahkan kamera ke QR container. Saat QR terbaca, sistem langsung
-            menyimpan transaksi yang sesuai tanpa langkah validasi tambahan.
-          </p>
-        ) : snapshot.appUser.role === "admin" ? (
-          <p className="lead compact-lead">
-            Gunakan dashboard sebagai titik pantau utama. Jika perlu, lanjut ke
-            halaman container atau audit dari menu atas.
-          </p>
-        ) : (
-          <p className="lead compact-lead">
-            Gunakan dashboard untuk memantau status HP, lalu buka halaman approval
-            saat ada kebutuhan pembelajaran atau kondisi darurat.
-          </p>
-        )}
-        {error ? <p className="form-error">{error}</p> : null}
-        {isLoading ? (
-          <p className="session-meta">Sinkronisasi sesi sedang berjalan...</p>
-        ) : null}
-      </section>
+        </CardHeader>
+        <CardContent>
+          {!snapshot ? (
+            <p className="lead compact-lead">
+              Setelah login, siswa akan diarahkan ke halaman scan. Guru dan wali kelas
+              diarahkan ke dashboard. Admin diarahkan ke dashboard admin.
+            </p>
+          ) : snapshot.appUser.role === "student" ? (
+            <p className="lead compact-lead">
+              Arahkan kamera ke QR container. Saat QR terbaca, sistem langsung
+              menyimpan transaksi yang sesuai tanpa langkah validasi tambahan.
+            </p>
+          ) : snapshot.appUser.role === "admin" ? (
+            <p className="lead compact-lead">
+              Gunakan dashboard sebagai titik pantau utama. Jika perlu, lanjut ke
+              halaman container atau audit dari menu atas.
+            </p>
+          ) : (
+            <p className="lead compact-lead">
+              Gunakan dashboard untuk memantau status HP, lalu buka halaman approval
+              saat ada kebutuhan pembelajaran atau kondisi darurat.
+            </p>
+          )}
+          {error ? <p className="form-error">{error}</p> : null}
+          {isLoading ? (
+            <p className="session-meta">Sinkronisasi sesi sedang berjalan...</p>
+          ) : null}
+        </CardContent>
+      </Card>
     </Layout>
   );
 }

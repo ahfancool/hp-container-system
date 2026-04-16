@@ -13,11 +13,13 @@ import {
   type TransactionResponse
 } from "../lib/transaction";
 import { announceToScreenReader } from "../lib/a11y";
+import { formatDateTime } from "../lib/format";
+import { translateError } from "../lib/errors";
 
 const readinessNotes = [
-  "Kamera memakai Browser Camera API melalui getUserMedia.",
+  "Kamera menggunakan Browser Camera API melalui getUserMedia.",
   "Decoder QR membaca payload dan mengekstrak container ID dari format container://{container_id}.",
-  "Scan dapat divalidasi lebih dulu, lalu dicatat ke database melalui POST /transaction."
+  "Scan dapat divalidasi terlebih dahulu, lalu dicatat ke database melalui POST /transaction."
 ];
 
 type ScannerShellProps = {
@@ -254,9 +256,8 @@ export function ScannerShell({
       setStatusMessage("Payload scan tervalidasi oleh backend.");
       announceToScreenReader(`Validasi berhasil. Aksi: ${result.validation.actionPreview} di ${result.validation.container.name}`);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Gagal mengirim scan.";
-      setSubmitError(message);
+      const message = translateError(error instanceof Error ? error.message : "Gagal mengirim scan.");
+      setSubmitError(message || "");
       setStatusMessage("Backend menolak atau gagal memproses payload scan.");
       announceToScreenReader(`Gagal validasi. ${message}`);
     } finally {
@@ -266,7 +267,7 @@ export function ScannerShell({
 
   const handleRecordTransaction = async () => {
     if (!containerId) {
-      setTransactionError("Belum ada container valid yang bisa dicatat.");
+      setTransactionError("Belum ada kontainer valid yang bisa dicatat.");
       return;
     }
 
@@ -291,9 +292,8 @@ export function ScannerShell({
       setStatusMessage("Transaksi berhasil dicatat ke database.");
       announceToScreenReader(`Transaksi berhasil. HP telah ${result.transaction.action === "IN" ? "tersimpan" : "diambil"}`);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Gagal mencatat transaksi.";
-      setTransactionError(message);
+      const message = translateError(error instanceof Error ? error.message : "Gagal mencatat transaksi.");
+      setTransactionError(message || "");
       setStatusMessage("Transaksi ditolak atau gagal dicatat.");
       announceToScreenReader(`Gagal mencatat transaksi. ${message}`);
     } finally {
@@ -337,7 +337,7 @@ export function ScannerShell({
           <canvas className="scanner-canvas" ref={canvasRef} aria-hidden="true" />
           <div className="camera-reticle" aria-hidden="true" />
           <p className="camera-label" aria-live="polite">
-            {isCameraActive ? "Arahkan kamera ke QR container" : "Kamera belum aktif"}
+            {isCameraActive ? "Arahkan kamera ke QR kontainer" : "Kamera belum aktif"}
           </p>
         </div>
 
@@ -443,16 +443,16 @@ export function ScannerShell({
             <p className="container-meta">{scanResult.validation.container.location}</p>
             <div className="container-meta-grid">
               <div>
-                <span className="summary-label">Aksi preview</span>
+                <span className="summary-label">Aksi pratinjau</span>
                 <strong>{scanResult.validation.actionPreview}</strong>
               </div>
               <div>
-                <span className="summary-label">Timestamp tervalidasi</span>
-                <strong>{scanResult.validation.validatedTimestamp}</strong>
+                <span className="summary-label">Waktu tervalidasi</span>
+                <strong>{formatDateTime(scanResult.validation.validatedTimestamp)}</strong>
               </div>
             </div>
             <div className="qr-payload-block">
-              <span className="summary-label">QR payload</span>
+              <span className="summary-label">Payload QR</span>
               <code>{scanResult.validation.container.qrCode}</code>
             </div>
             <p className="container-meta">{scanResult.message}</p>
@@ -460,11 +460,11 @@ export function ScannerShell({
               <p className="container-meta">
                 Transaksi terakhir: {scanResult.validation.lastTransaction.action}{" "}
                 {scanResult.validation.lastTransaction.type} pada{" "}
-                {scanResult.validation.lastTransaction.timestamp}
+                {formatDateTime(scanResult.validation.lastTransaction.timestamp)}
               </p>
             ) : (
               <p className="container-meta">
-                Belum ada transaksi sebelumnya. Preview aksi awal adalah `IN`.
+                Belum ada transaksi sebelumnya. Pratinjau aksi awal adalah `MASUK`.
               </p>
             )}
           </div>
@@ -479,23 +479,23 @@ export function ScannerShell({
             <p className="container-meta">{transactionResult.message}</p>
             <div className="container-meta-grid">
               <div>
-                <span className="summary-label">Transaction ID</span>
+                <span className="summary-label">ID Transaksi</span>
                 <strong>{transactionResult.transaction.id}</strong>
               </div>
               <div>
-                <span className="summary-label">Request ID</span>
+                <span className="summary-label">ID Permintaan</span>
                 <strong>{transactionResult.idempotency.requestId ?? "-"}</strong>
               </div>
               <div>
                 <span className="summary-label">Waktu transaksi</span>
-                <strong>{transactionResult.transaction.timestamp}</strong>
+                <strong>{formatDateTime(transactionResult.transaction.timestamp)}</strong>
               </div>
               <div>
                 <span className="summary-label">Zona sekolah</span>
                 <strong>{transactionResult.rules.timeZone}</strong>
               </div>
               <div>
-                <span className="summary-label">Batas OUT reguler</span>
+                <span className="summary-label">Batas AMBIL reguler</span>
                 <strong>
                   {transactionResult.rules.allowedAt} | sekarang{" "}
                   {transactionResult.rules.currentLocalTime}
@@ -504,8 +504,8 @@ export function ScannerShell({
             </div>
             {transactionResult.idempotency.replayed ? (
               <p className="container-meta">
-                Response ini berasal dari replay aman request yang sama, jadi
-                backend tidak menulis transaksi baru kedua kali.
+                Response ini berasal dari pengulangan permintaan yang sama, 
+                backend tidak menulis transaksi baru.
               </p>
             ) : null}
           </div>
