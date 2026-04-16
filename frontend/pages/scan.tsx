@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 import { Layout } from "../components/Layout";
@@ -10,8 +10,20 @@ import { Card, CardHeader, CardContent } from "../components/ui/Card";
 
 export default function ScanPage() {
   const { isReady, session, snapshot } = useAuth();
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const router = useRouter();
   const canScan = Boolean(snapshot?.permissions.canScan && snapshot.student);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isReady || !snapshot || snapshot.appUser.role === "student") {
@@ -22,8 +34,29 @@ export default function ScanPage() {
   }, [isReady, router, snapshot]);
 
   return (
-    <Layout title="Scan HP" eyebrow="Area Siswa">
-      {canScan && snapshot?.student && session?.access_token ? (
+    <Layout title="Scan QR" eyebrow="Siswa">
+      {!isOnline ? (
+        <Card className="content-panel">
+          <CardHeader>
+            <span className="panel-tag">Offline</span>
+            <h2>Koneksi Internet Terputus</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-danger-bg text-danger p-6 rounded-2xl mb-6">
+              <p className="font-bold">Fitur Scan Dinonaktifkan</p>
+              <p className="text-sm mt-2">
+                Sistem membutuhkan koneksi internet untuk memvalidasi keamanan QR Code dan 
+                mencegah manipulasi waktu transaksi. Silakan cari sinyal atau hubungkan ke WiFi sekolah.
+              </p>
+            </div>
+            <div className="button-row compact-button-row">
+              <button className="primary-button" onClick={() => window.location.reload()}>
+                Coba Lagi
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : canScan && snapshot?.student && session?.access_token ? (
         <MobileScannerShell
           accessToken={session.access_token}
           studentClassName={snapshot.student.className}

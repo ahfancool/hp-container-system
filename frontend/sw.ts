@@ -10,7 +10,18 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    {
+      // Match any request that looks like an API call (POST/PUT/DELETE or specific headers)
+      // or simply rely on the fact that we don't want to cache anything from our API base URL
+      matcher: ({ url, request }) => 
+        request.method !== "GET" || 
+        url.pathname.includes("/api/") ||
+        url.hostname.includes("supabase.co"), // Don't cache Supabase calls either
+      strategy: "NetworkOnly",
+    },
+    ...defaultCache,
+  ],
 });
 
 serwist.addEventListeners();
