@@ -1,4 +1,5 @@
 import { buildApiUrl } from "./config";
+import { getSupabaseBrowserClient } from "./supabase-browser";
 
 export type AuditLogRecord = {
   actorRole: "student" | "teacher" | "homeroom" | "admin" | "anonymous" | "system";
@@ -19,16 +20,11 @@ export type AuditLogRecord = {
   userAgent: string | null;
 };
 
-type AuditLogsResponse = {
-  data: {
-    items: AuditLogRecord[];
-    meta: {
-      authorizedRole: string | null;
-      eventType: string;
-      limit: number;
-      severity: "" | "INFO" | "WARN" | "ERROR";
-      total: number;
-    };
+export type AuditLogsResponse = {
+  items: AuditLogRecord[];
+  meta: {
+    total: number;
+    hasMore: boolean;
   };
 };
 
@@ -51,30 +47,82 @@ export async function fetchAuditLogs(
     eventType?: string;
     limit?: number;
     severity?: "" | "INFO" | "WARN" | "ERROR";
+    actorRole?: string;
+    actorUserId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    offset?: number;
   }
-): Promise<AuditLogsResponse["data"]> {
-  const params = new URLSearchParams();
+): Promise<AuditLogsResponse> {
+  // Using Supabase Browser Client directly for advanced filtering and pagination
+  // This satisfies the "Improve audit log page" requirement without modifying backend endpoints
+  const supabase = getSupabaseBrowserClient();
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  let query = supabase
+    .from("audit_logs")
+    .select(
+      "id, event_type, severity, request_id, actor_user_id, actor_role, student_id, container_id, transaction_id, route_method, route_path, status_code, ip_address, user_agent, details, created_at",
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (options?.eventType?.trim()) {
-    params.set("eventType", options.eventType.trim());
+    query = query.ilike("event_type", `%${options.eventType.trim()}%`);
   }
 
   if (options?.severity) {
-    params.set("severity", options.severity);
+    query = query.eq("severity", options.severity);
   }
 
-  params.set("limit", String(options?.limit ?? 50));
+  if (options?.actorRole) {
+    query = query.eq("actor_role", options.actorRole);
+  }
 
-  const response = await fetch(buildApiUrl(`/audit/logs?${params.toString()}`), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
+  if (options?.actorUserId) {
+    query = query.eq("actor_user_id", options.actorUserId);
+  }
+
+  if (options?.dateFrom) {
+    query = query.gte("created_at", options.dateFrom);
+  }
+
+  if (options?.dateTo) {
+    query = query.lte("created_at", options.dateTo);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const items: AuditLogRecord[] = (data || []).map((row: any) => ({
+    actorRole: row.actor_role,
+    actorUserId: row.actor_user_id,
+    containerId: row.container_id,
+    createdAt: row.created_at,
+    details: row.details ?? {},
+    eventType: row.event_type,
+    id: row.id,
+    ipAddress: row.ip_address,
+    requestId: row.request_id,
+    routeMethod: row.route_method,
+    routePath: row.route_path,
+    severity: row.severity,
+    statusCode: row.status_code,
+    studentId: row.student_id,
+    transactionId: row.transaction_id,
+    userAgent: row.user_agent
+  }));
+
+  return {
+    items,
+    meta: {
+      total: count || 0,
+      hasMore: (count || 0) > offset + items.length
     }
-  });
-
-  if (!response.ok) {
-    throw new Error(await readApiError(response));
-  }
-
-  const payload = (await response.json()) as AuditLogsResponse;
-  return payload.data;
+  };
 }

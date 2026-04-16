@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import { Layout } from "../../components/Layout";
 import { useAuth } from "../../context/AuthContext";
 import { fetchAuditLogs, type AuditLogRecord } from "../../lib/audit";
 import { getDefaultRoute } from "../../lib/navigation";
+import { Button } from "../../components/ui/Button";
+import { TableSkeleton } from "../../components/ui/Skeleton";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("id-ID", {
@@ -88,169 +92,181 @@ function readDetail(record: AuditLogRecord, key: string): string | null {
 export default function AdminAuditPage() {
   const { isReady, session, snapshot } = useAuth();
   const [items, setItems] = useState<AuditLogRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  
+  // Filters
   const [severity, setSeverity] = useState<"" | "INFO" | "WARN" | "ERROR">("");
   const [eventType, setEventType] = useState("");
-  const [limit, setLimit] = useState(50);
+  const [actorRole, setActorRole] = useState("");
+  const [actorUserId, setActorUserId] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  
+  const [limit] = useState(50);
+  const [offset, setOffset] = useState(0);
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<Array<{ id: string; name: string; role: string }>>([]);
 
   const canAuditLogs = Boolean(snapshot?.permissions.canAuditLogs);
+  const supabase = getSupabaseBrowserClient();
 
-  const loadLogs = async () => {
-    if (!session?.access_token || !canAuditLogs) {
-      return;
+  const loadUsers = async () => {
+    const { data } = await supabase
+      .from("users")
+      .select("id, name, role")
+      .order("name");
+    if (data) setUsers(data);
+  };
+
+  const loadLogs = async (isLoadMore = false) => {
+    if (!session?.access_token || !canAuditLogs) return;
+
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setOffset(0);
     }
-
-    setIsLoading(true);
+    
     setError(null);
 
     try {
+      const currentOffset = isLoadMore ? offset + limit : 0;
       const result = await fetchAuditLogs(session.access_token, {
         eventType,
         limit,
-        severity
+        severity,
+        actorRole,
+        actorUserId,
+        dateFrom: dateFrom ? new Date(dateFrom).toISOString() : undefined,
+        dateTo: dateTo ? new Date(dateTo).toISOString() : undefined,
+        offset: currentOffset
       });
 
-      setItems(result.items);
+      if (isLoadMore) {
+        setItems(prev => [...prev, ...result.items]);
+        setOffset(currentOffset);
+      } else {
+        setItems(result.items);
+        setOffset(0);
+      }
+      
+      setTotal(result.meta.total);
+      setHasMore(result.meta.hasMore);
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Gagal memuat audit log."
-      );
+      setError(loadError instanceof Error ? loadError.message : "Gagal memuat audit log.");
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    void loadLogs();
-  }, [canAuditLogs, session?.access_token]);
+    if (isReady && session) {
+      void loadLogs();
+      void loadUsers();
+    }
+  }, [canAuditLogs, session?.access_token, isReady]);
+
+  const clearFilters = () => {
+    setSeverity("");
+    setEventType("");
+    setActorRole("");
+    setActorUserId("");
+    setDateFrom("");
+    setDateTo("");
+    setTimeout(() => void loadLogs(), 0);
+  };
 
   return (
-    <Layout title="Audit Log" eyebrow="Milestone 9: Security Layer">
+    <Layout title="Audit Log" eyebrow="Security Audit">
       {!isReady ? (
-        <section className="content-panel">
-          <p className="lead compact-lead">Memeriksa sesi login admin...</p>
-        </section>
-      ) : !session || !snapshot ? (
-        <section className="content-panel">
-          <div className="panel-header">
-            <span className="panel-tag">Login Dibutuhkan</span>
-            <h2>Halaman audit hanya untuk admin</h2>
-          </div>
-          <p className="lead compact-lead">
-            Login menggunakan akun admin untuk membaca log keamanan dan aktivitas sistem.
-          </p>
-          <div className="button-row compact-button-row">
-            <Link className="primary-button" href="/login">
-              Buka login
-            </Link>
-          </div>
-        </section>
-      ) : !canAuditLogs ? (
-        <section className="content-panel">
-          <div className="panel-header">
-            <span className="panel-tag">Akses Ditolak</span>
-            <h2>Role saat ini tidak boleh membuka audit log</h2>
-          </div>
-          <p className="lead compact-lead">
-            Audit log dibatasi untuk admin agar data keamanan tidak terekspos ke role lain.
-          </p>
-          <div className="button-row compact-button-row">
-            <Link className="secondary-button" href={getDefaultRoute(snapshot)}>
-              Buka halaman utama
-            </Link>
-          </div>
-        </section>
+        <section className="content-panel"><p className="lead">Memeriksa sesi...</p></section>
+      ) : !session || !snapshot || !canAuditLogs ? (
+        <section className="content-panel"><h2>Akses Ditolak</h2></section>
       ) : (
-        <>
+        <div className="flex flex-col gap-8">
           <section className="hero-grid">
             <div className="content-panel">
               <div className="panel-header">
                 <span className="panel-tag">Filter Audit</span>
-                <h2>Telusuri kejadian keamanan dan aktivitas penting sistem</h2>
+                <h2>Pencarian Log Keamanan</h2>
               </div>
-              <div className="dashboard-filter-grid">
-                <label className="field-group">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                <div className="field-group">
                   <span>Severity</span>
-                  <select
-                    className="text-input select-input"
-                    onChange={(event) => {
-                      const value = event.target.value as "" | "INFO" | "WARN" | "ERROR";
-                      setSeverity(value);
-                    }}
-                    value={severity}
-                  >
-                    <option value="">Semua severity</option>
+                  <select className="text-input select-input" value={severity} onChange={e => setSeverity(e.target.value as any)}>
+                    <option value="">Semua</option>
                     <option value="INFO">INFO</option>
                     <option value="WARN">WARN</option>
                     <option value="ERROR">ERROR</option>
                   </select>
-                </label>
-                <label className="field-group">
-                  <span>Limit</span>
-                  <select
-                    className="text-input select-input"
-                    onChange={(event) => {
-                      setLimit(Number.parseInt(event.target.value, 10));
-                    }}
-                    value={limit}
-                  >
-                    <option value="25">25 log</option>
-                    <option value="50">50 log</option>
-                    <option value="100">100 log</option>
+                </div>
+                <div className="field-group">
+                  <span>Role Aktor</span>
+                  <select className="text-input select-input" value={actorRole} onChange={e => setActorRole(e.target.value)}>
+                    <option value="">Semua Role</option>
+                    <option value="admin">Admin</option>
+                    <option value="teacher">Teacher</option>
+                    <option value="homeroom">Homeroom</option>
+                    <option value="student">Student</option>
+                    <option value="system">System</option>
                   </select>
-                </label>
+                </div>
+                <div className="field-group">
+                  <span>Aktor Spesifik</span>
+                  <select className="text-input select-input" value={actorUserId} onChange={e => setActorUserId(e.target.value)}>
+                    <option value="">Semua Pengguna</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field-group">
+                  <span>Mulai Tanggal</span>
+                  <input type="date" className="text-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                </div>
+                <div className="field-group">
+                  <span>Sampai Tanggal</span>
+                  <input type="date" className="text-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                </div>
+                <div className="field-group">
+                  <span>Event Type</span>
+                  <input className="text-input" value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Contoh: auth.login" />
+                </div>
               </div>
-              <label className="field-group">
-                <span>Event type</span>
-                <input
-                  className="text-input"
-                  onChange={(event) => {
-                    setEventType(event.target.value);
-                  }}
-                  placeholder="Contoh: security.rate_limit_blocked"
-                  type="text"
-                  value={eventType}
-                />
-              </label>
-              <div className="scanner-controls">
-                <button
-                  className="primary-button"
-                  disabled={isLoading}
-                  onClick={() => {
-                    void loadLogs();
-                  }}
-                  type="button"
-                >
-                  {isLoading ? "Memuat..." : "Muat audit log"}
-                </button>
+
+              <div className="flex gap-3 mt-6">
+                <Button isLoading={isLoading} onClick={() => loadLogs(false)}>Terapkan Filter</Button>
+                <Button variant="ghost" onClick={clearFilters}>Hapus Filter</Button>
               </div>
-              {error ? <p className="form-error">{error}</p> : null}
+              {error && <p className="form-error mt-2">{error}</p>}
             </div>
 
             <div className="signal-panel">
-              <span className="signal-label">Ringkasan Audit</span>
-              <strong>{items.length} log terbaca</strong>
-              <p>
-                Gunakan halaman ini untuk mengecek kejadian penting seperti
-                transaksi, approval, akses yang ditolak, dan peringatan keamanan.
-              </p>
+              <span className="signal-label">Ringkasan</span>
+              <strong>{total} log</strong>
+              <p>Ditemukan berdasarkan filter saat ini.</p>
             </div>
           </section>
 
           <section className="content-panel">
             <div className="panel-header">
-              <span className="panel-tag">Log Terbaru</span>
-              <h2>Urutan terbaru dari audit trail sistem</h2>
+              <span className="panel-tag">Audit Trail</span>
+              <h2>Log Aktivitas Terbaru</h2>
             </div>
-            {items.length === 0 ? (
-              <p className="lead compact-lead">
-                Belum ada log yang cocok dengan filter saat ini.
-              </p>
+            
+            {isLoading ? (
+              <TableSkeleton cols={4} rows={10} />
+            ) : items.length === 0 ? (
+              <EmptyState title="Tidak ada log" description="Coba sesuaikan filter Anda." />
             ) : (
-              <div className="activity-list">
+              <div className="activity-list flex flex-col gap-4">
                 {items.map((record) => (
                   <article className="activity-card" key={record.id}>
                     <div className="activity-card-header">
@@ -262,39 +278,60 @@ export default function AdminAuditPage() {
                         {getSeverityLabel(record.severity)}
                       </span>
                     </div>
-                    <p className="container-meta">
-                      {formatDateTime(record.createdAt)} | Aktor{" "}
-                      {readDetail(record, "actorName") ?? record.actorRole}
-                    </p>
-                    <p className="container-meta">
-                      {record.routeMethod} {record.routePath} | status{" "}
-                      {record.statusCode ?? "-"}
-                    </p>
-                    {record.requestId || record.ipAddress ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mt-2">
                       <p className="container-meta">
-                        {record.requestId ? `Request ID ${record.requestId}` : "-"}
-                        {record.ipAddress ? ` | IP ${record.ipAddress}` : ""}
+                        <strong>Waktu:</strong> {formatDateTime(record.createdAt)}
                       </p>
-                    ) : null}
-                    {(record.studentId || record.containerId) ? (
                       <p className="container-meta">
-                        {record.studentId ? `Siswa ${record.studentId}` : ""}
-                        {record.studentId && record.containerId ? " | " : ""}
-                        {record.containerId ? `Container ${record.containerId}` : ""}
+                        <strong>Aktor:</strong> {readDetail(record, "actorName") ?? record.actorRole} ({record.actorRole})
                       </p>
-                    ) : null}
-                    <details className="detail-panel">
-                      <summary>Lihat detail mentah</summary>
-                      <pre className="payload-preview audit-details-preview">
-                        {JSON.stringify(record.details, null, 2)}
-                      </pre>
+                      <p className="container-meta">
+                        <strong>Route:</strong> {record.routeMethod} {record.routePath}
+                      </p>
+                      <p className="container-meta">
+                        <strong>Status:</strong> {record.statusCode ?? "-"}
+                      </p>
+                    </div>
+                    
+                    <details className="detail-panel mt-4">
+                      <summary className="text-sm font-bold opacity-70">Detail Teknis</summary>
+                      <div className="p-4 bg-surface-strong rounded-xl mt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          <div>
+                            <p className="text-muted">Request ID</p>
+                            <code className="break-all">{record.requestId || "-"}</code>
+                          </div>
+                          <div>
+                            <p className="text-muted">IP Address</p>
+                            <code>{record.ipAddress || "-"}</code>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <p className="text-muted text-xs">Data Mentah (Details)</p>
+                          <pre className="payload-preview mt-1 text-[10px]">
+                            {JSON.stringify(record.details, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
                     </details>
                   </article>
                 ))}
+                
+                {hasMore && (
+                  <div className="flex justify-center py-8">
+                    <Button 
+                      variant="secondary" 
+                      isLoading={isLoadingMore} 
+                      onClick={() => loadLogs(true)}
+                    >
+                      Muat Lebih Banyak
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </section>
-        </>
+        </div>
       )}
     </Layout>
   );
