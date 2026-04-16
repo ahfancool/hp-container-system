@@ -111,10 +111,7 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
 export default function AdminContainersPage() {
   const { isReady, session, snapshot } = useAuth();
   const [containers, setContainers] = useState<ContainerRecord[]>([]);
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
@@ -124,6 +121,43 @@ export default function AdminContainersPage() {
 
   const isAdmin = snapshot?.appUser.role === "admin";
   const supabase = getSupabaseBrowserClient();
+
+  const {
+    values,
+    errors,
+    touched,
+    isSubmitting: isSubmittingForm,
+    isValid,
+    isDirty,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    resetForm,
+  } = useForm(
+    { name: "", location: "" },
+    {
+      name: { required: true, min: 3 },
+      location: { required: true, min: 3 },
+    },
+    async (formValues) => {
+      if (!session?.access_token) return;
+      setError(null);
+      try {
+        const created = await createContainerRequest(session.access_token, { 
+          location: formValues.location, 
+          name: formValues.name 
+        });
+        setContainers((current) => [created, ...current]);
+        resetForm();
+        showToast.success(`Container ${created.name} berhasil dibuat`);
+      } catch (submitError) {
+        setError(submitError instanceof Error ? submitError.message : "Gagal membuat container.");
+        throw submitError;
+      }
+    }
+  );
+
+  useUnsavedChanges(isDirty);
 
   const loadContainers = async () => {
     if (!session?.access_token || !isAdmin) {
@@ -208,26 +242,6 @@ export default function AdminContainersPage() {
     }
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!session?.access_token) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      const created = await createContainerRequest(session.access_token, { location, name });
-      setContainers((current) => [created, ...current]);
-      setName("");
-      setLocation("");
-      showToast.success(`Container ${created.name} berhasil dibuat`);
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Gagal membuat container.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <Layout title="Manajemen Container" eyebrow="Admin Panel">
       {!isReady ? (
@@ -244,16 +258,34 @@ export default function AdminContainersPage() {
               </div>
               <form className="auth-form" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="field-group">
-                    <span>Nama container</span>
-                    <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Contoh: Container A" required />
-                  </label>
-                  <label className="field-group">
-                    <span>Lokasi</span>
-                    <input className="text-input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Contoh: Gedung 1" required />
-                  </label>
+                  <Input
+                    label="Nama container"
+                    value={values.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    onBlur={() => handleBlur("name")}
+                    error={touched.name ? errors.name : undefined}
+                    placeholder="Contoh: Container A"
+                    required
+                  />
+                  <Input
+                    label="Lokasi"
+                    value={values.location}
+                    onChange={(e) => handleChange("location", e.target.value)}
+                    onBlur={() => handleBlur("location")}
+                    error={touched.location ? errors.location : undefined}
+                    placeholder="Contoh: Gedung 1"
+                    required
+                  />
                 </div>
-                <Button className="form-button" isLoading={isSubmitting} type="submit">Tambah Container</Button>
+                <Button 
+                  className="form-button" 
+                  isLoading={isSubmittingForm} 
+                  type="submit"
+                  disabled={!isValid || isSubmittingForm}
+                  title={!isValid ? "Harap lengkapi form dengan benar" : ""}
+                >
+                  Tambah Container
+                </Button>
                 {error && <p className="form-error">{error}</p>}
               </form>
             </div>

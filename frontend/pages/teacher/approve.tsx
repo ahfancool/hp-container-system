@@ -25,6 +25,9 @@ import {
 } from "../../lib/teacherApproval";
 import { getDefaultRoute } from "../../lib/navigation";
 
+import { useForm } from "../../hooks/useForm";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
+
 type ApprovalType = "PEMBELAJARAN" | "DARURAT";
 type VirtualizedGridRowProps = {
   columnCount: number;
@@ -257,6 +260,9 @@ export default function TeacherApprovePage() {
   // Quick Approval State
   const [quickApproveStudent, setQuickApproveStudent] = useState<StudentApprovalRecord | null>(null);
   const [quickApprovalType, setQuickApprovalType] = useState<ApprovalType>("PEMBELAJARAN");
+
+  const isDirty = selectedStudentIds.length > 0 || search !== "" || selectedClassName !== ALL_CLASSES;
+  useUnsavedChanges(isDirty);
 
   const canApprove = Boolean(snapshot?.permissions.canApprove);
   const deferredSearch = useDeferredValue(search);
