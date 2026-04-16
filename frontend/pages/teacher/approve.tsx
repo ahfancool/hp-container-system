@@ -5,7 +5,11 @@ import { List, type RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 
 import { Layout } from "../../components/Layout";
-import { CardSkeleton, ListSkeleton } from "../../components/Skeleton";
+import { DashboardListSkeleton, Skeleton } from "../../components/ui/Skeleton";
+import { Button } from "../../components/ui/Button";
+import { Badge } from "../../components/ui/Badge";
+import { Modal } from "../../components/ui/Modal";
+import { Card } from "../../components/ui/Card";
 import { useAuth } from "../../context/AuthContext";
 import {
   fetchContainers,
@@ -25,6 +29,7 @@ type ApprovalType = "PEMBELAJARAN" | "DARURAT";
 type VirtualizedGridRowProps = {
   columnCount: number;
   items: StudentApprovalRecord[];
+  onQuickApprove: (student: StudentApprovalRecord) => void;
   onToggle: (id: string) => void;
   selectedStudentSet: Set<string>;
 };
@@ -60,14 +65,14 @@ function formatDateTime(value: string): string {
 
 function getPhoneStatusLabel(status: StudentApprovalRecord["phoneStatus"]): string {
   if (status === "INSIDE") {
-    return "HP di container";
+    return "Di container";
   }
 
   if (status === "OUTSIDE") {
-    return "HP sedang keluar";
+    return "Sedang keluar";
   }
 
-  return "Belum ada scan";
+  return "Belum scan";
 }
 
 function getPhoneStatusClass(status: StudentApprovalRecord["phoneStatus"]): string {
@@ -76,10 +81,124 @@ function getPhoneStatusClass(status: StudentApprovalRecord["phoneStatus"]): stri
   }
 
   if (status === "OUTSIDE") {
-    return "status-badge status-outside";
+    return "status-badge status-pending"; // Orange
   }
 
-  return "status-badge status-pending";
+  return "status-badge status-neutral"; // Gray
+}
+
+// Memoized individual student card for performance
+const StudentOptionCard = React.memo(({ 
+  student, 
+  isSelected, 
+  onToggle,
+  onQuickApprove
+}: { 
+  student: StudentApprovalRecord; 
+  isSelected: boolean; 
+  onToggle: (id: string) => void;
+  onQuickApprove: (student: StudentApprovalRecord) => void;
+}) => {
+  const isSelectable = student.readyForTeacherOverride;
+
+  return (
+    <article
+      className={[
+        "student-option-card",
+        "fade-in",
+        "hover-lift",
+        isSelected ? "is-selected" : "",
+        !isSelectable && !student.pendingApproval ? "opacity-60" : ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={{ height: "100%", width: "100%", cursor: "default" }}
+    >
+      <div className="student-card-row">
+        <div>
+          <span className="status-label">{student.className}</span>
+          <h3 style={{ margin: "4px 0" }}>{student.name}</h3>
+        </div>
+        <span className={getPhoneStatusClass(student.phoneStatus)}>
+          {getPhoneStatusLabel(student.phoneStatus)}
+        </span>
+      </div>
+      
+      <p className="container-meta" style={{ marginBottom: "12px" }}>
+        NIS {student.nis} {student.major ? ` | ${student.major}` : ""}
+      </p>
+
+      {student.pendingApproval ? (
+        <div className="approval-inline-card compact-approval-card" style={{ marginBottom: "12px" }}>
+          <span className="summary-label">Approval Aktif</span>
+          <strong>{student.pendingApproval.type}</strong>
+          <p className="session-meta">
+            Menunggu scan di {student.pendingApproval.container.name}
+          </p>
+        </div>
+      ) : (
+        <p className="session-meta" style={{ marginBottom: "12px", minHeight: "2.4em" }}>
+          {isSelectable 
+            ? "Siap untuk mendapatkan approval keluar." 
+            : "Belum bisa approval (HP tidak di dalam container)."}
+        </p>
+      )}
+
+      <div className="flex gap-2 mt-auto">
+        <Button
+          variant={isSelected ? "primary" : "secondary"}
+          size="sm"
+          className="flex-1"
+          disabled={!isSelectable}
+          onClick={() => onToggle(student.id)}
+        >
+          {isSelected ? "Terpilih" : "Pilih Massal"}
+        </Button>
+        {isSelectable && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => onQuickApprove(student)}
+          >
+            Quick Approve
+          </Button>
+        )}
+      </div>
+    </article>
+  );
+});
+
+// Row component that renders multiple columns
+function VirtualizedGridRow({
+  columnCount,
+  index,
+  items,
+  onToggle,
+  onQuickApprove,
+  selectedStudentSet,
+  style
+}: RowComponentProps<VirtualizedGridRowProps>) {
+  const startIndex = index * columnCount;
+  const rowItems = items.slice(startIndex, startIndex + columnCount);
+
+  return (
+    <div style={{ ...style, display: "flex", gap: "16px", paddingBottom: "16px", boxSizing: "border-box" }}>
+      {rowItems.map((student: StudentApprovalRecord) => (
+        <div key={student.id} style={{ flex: `1 0 calc(${100 / columnCount}% - 16px)`, maxWidth: `calc(${100 / columnCount}% - 12px)` }}>
+          <StudentOptionCard 
+            student={student}
+            isSelected={selectedStudentSet.has(student.id)}
+            onToggle={onToggle}
+            onQuickApprove={onQuickApprove}
+          />
+        </div>
+      ))}
+      {/* Fill empty spaces in the last row to maintain grid alignment */}
+      {rowItems.length < columnCount && Array.from({ length: columnCount - rowItems.length }).map((_, i) => (
+        <div key={`empty-${i}`} style={{ flex: `1 0 calc(${100 / columnCount}% - 16px)` }} />
+      ))}
+    </div>
+  );
 }
 
 function getBulkResultClass(
@@ -118,120 +237,6 @@ function getBulkResultLabel(
   return "Dilewati";
 }
 
-function buildStudentSummary(student: StudentApprovalRecord): string {
-  if (student.pendingApproval) {
-    return `Approval ${student.pendingApproval.type} aktif pada ${formatDateTime(student.pendingApproval.approvedAt)} untuk ${student.pendingApproval.container.name}. Menunggu siswa scan untuk menyelesaikan transaksi keluar.`;
-  }
-
-  if (!student.latestTransaction) {
-    return "Belum ada transaksi sebelumnya. Override belum bisa dipakai sebelum HP pernah masuk ke container.";
-  }
-
-  if (student.latestTransaction.action === "IN") {
-    return `Transaksi terakhir ${student.latestTransaction.type} pada ${formatDateTime(student.latestTransaction.timestamp)}. Siswa siap untuk approval keluar.`;
-  }
-
-  return `Transaksi terakhir ${student.latestTransaction.type} pada ${formatDateTime(student.latestTransaction.timestamp)}. HP sedang berada di luar, jadi aksi berikutnya seharusnya IN.`;
-}
-
-// Memoized individual student card for performance
-const StudentOptionCard = React.memo(({ 
-  student, 
-  isSelected, 
-  onToggle 
-}: { 
-  student: StudentApprovalRecord; 
-  isSelected: boolean; 
-  onToggle: (id: string) => void;
-}) => {
-  const isSelectable = student.readyForTeacherOverride;
-
-  return (
-    <button
-      className={[
-        "student-option-card",
-        "fade-in",
-        "hover-lift",
-        isSelected ? "is-selected" : "",
-        !isSelectable ? "is-disabled" : ""
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      disabled={!isSelectable}
-      onClick={() => onToggle(student.id)}
-      type="button"
-      style={{ height: "100%", width: "100%" }}
-    >
-      <div className="student-card-row">
-        <div>
-          <span className="status-label">{student.className}</span>
-          <h3>{student.name}</h3>
-        </div>
-        <div className="student-card-statuses">
-          {isSelected ? (
-            <span className="status-badge status-outside">Dipilih</span>
-          ) : null}
-          <span className={getPhoneStatusClass(student.phoneStatus)}>
-            {getPhoneStatusLabel(student.phoneStatus)}
-          </span>
-        </div>
-      </div>
-      <p className="container-meta">
-        NIS {student.nis}
-        {student.major ? ` | ${student.major}` : ""}
-      </p>
-      <p className="container-meta">{buildStudentSummary(student)}</p>
-      <div className="container-meta-grid">
-        <div>
-          <span className="summary-label">Aksi berikutnya</span>
-          <strong>{student.nextExpectedAction}</strong>
-        </div>
-        <div>
-          <span className="summary-label">Status approval</span>
-          <strong>
-            {student.pendingApproval
-              ? "Menunggu scan"
-              : student.readyForTeacherOverride
-                ? "Siap dipilih"
-                : "Belum siap"}
-          </strong>
-        </div>
-      </div>
-    </button>
-  );
-});
-
-// Row component that renders multiple columns
-function VirtualizedGridRow({
-  columnCount,
-  index,
-  items,
-  onToggle,
-  selectedStudentSet,
-  style
-}: RowComponentProps<VirtualizedGridRowProps>) {
-  const startIndex = index * columnCount;
-  const rowItems = items.slice(startIndex, startIndex + columnCount);
-
-  return (
-    <div style={{ ...style, display: "flex", gap: "16px", paddingBottom: "16px", boxSizing: "border-box" }}>
-      {rowItems.map((student: StudentApprovalRecord) => (
-        <div key={student.id} style={{ flex: `1 0 calc(${100 / columnCount}% - 16px)`, maxWidth: `calc(${100 / columnCount}% - 12px)` }}>
-          <StudentOptionCard 
-            student={student}
-            isSelected={selectedStudentSet.has(student.id)}
-            onToggle={onToggle}
-          />
-        </div>
-      ))}
-      {/* Fill empty spaces in the last row to maintain grid alignment */}
-      {rowItems.length < columnCount && Array.from({ length: columnCount - rowItems.length }).map((_, i) => (
-        <div key={`empty-${i}`} style={{ flex: `1 0 calc(${100 / columnCount}% - 16px)` }} />
-      ))}
-    </div>
-  );
-}
-
 export default function TeacherApprovePage() {
   const { isReady, session, snapshot } = useAuth();
   const [students, setStudents] = useState<StudentApprovalRecord[]>([]);
@@ -249,6 +254,10 @@ export default function TeacherApprovePage() {
   const [approvalResult, setApprovalResult] =
     useState<TeacherApprovalResponse | null>(null);
 
+  // Quick Approval State
+  const [quickApproveStudent, setQuickApproveStudent] = useState<StudentApprovalRecord | null>(null);
+  const [quickApprovalType, setQuickApprovalType] = useState<ApprovalType>("PEMBELAJARAN");
+
   const canApprove = Boolean(snapshot?.permissions.canApprove);
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim().toLowerCase();
@@ -256,9 +265,16 @@ export default function TeacherApprovePage() {
   const selectedContainer =
     containers.find((container) => container.id === selectedContainerId) ?? null;
   const pendingApprovalStudents = students.filter((student) => student.pendingApproval);
-  const selectedStudents = students.filter((student) =>
-    selectedStudentSet.has(student.id)
-  );
+  
+  // History: Students who were approved today and still have pending approval
+  // Or simply use the ones with pendingApproval as "active history" for this session
+  const activeApprovalsHistory = useMemo(() => {
+    return students.filter(s => s.pendingApproval).sort((a, b) => {
+      const timeA = new Date(a.pendingApproval!.approvedAt).getTime();
+      const timeB = new Date(b.pendingApproval!.approvedAt).getTime();
+      return timeB - timeA;
+    });
+  }, [students]);
 
   const classStats = new Map<
     string,
@@ -322,9 +338,6 @@ export default function TeacherApprovePage() {
       .includes(normalizedSearch);
   });
 
-  const selectedReadyInClassCount = readyStudentsInClass.filter((student) =>
-    selectedStudentSet.has(student.id)
-  ).length;
   const selectedClassLabel =
     selectedClassName === ALL_CLASSES ? "Semua kelas" : selectedClassName;
 
@@ -350,12 +363,12 @@ export default function TeacherApprovePage() {
     );
   }, [selectedClassName, students]);
 
-  const loadPanelData = async () => {
+  const loadPanelData = async (silent = false) => {
     if (!session?.access_token || !canApprove) {
       return;
     }
 
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setLoadError(null);
 
     try {
@@ -379,9 +392,9 @@ export default function TeacherApprovePage() {
           ? error.message
           : "Gagal memuat panel approval guru.";
       setLoadError(message);
-      toast.error(message);
+      if (!silent) toast.error(message);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   };
 
@@ -401,16 +414,27 @@ export default function TeacherApprovePage() {
     setApprovalResult(null);
   };
 
-  const handleSelectAllReadyInClass = () => {
-    setSelectedStudentIds(readyStudentsInClass.map((student) => student.id));
-    setApprovalError(null);
-    setApprovalResult(null);
-  };
+  const handleQuickApprove = async () => {
+    if (!session?.access_token || !quickApproveStudent || !selectedContainerId) {
+      return;
+    }
 
-  const handleClearSelection = () => {
-    setSelectedStudentIds([]);
-    setApprovalError(null);
-    setApprovalResult(null);
+    setIsSubmitting(true);
+    try {
+      const result = await submitTeacherApproval(session.access_token, {
+        containerId: selectedContainerId,
+        studentIds: [quickApproveStudent.id],
+        type: quickApprovalType
+      });
+
+      toast.success(`Approval ${quickApprovalType.toLowerCase()} aktif untuk ${quickApproveStudent.name}`);
+      setQuickApproveStudent(null);
+      await loadPanelData(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal quick approve");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -472,8 +496,8 @@ export default function TeacherApprovePage() {
 
   return (
     <Layout
-      title="Panel Approval Guru"
-      eyebrow="Milestone 14: Bulk Teacher Approval UI"
+      title="Teacher Approval"
+      eyebrow="Milestone 14: Approval Workflow"
     >
       {!isReady ? (
         <section className="content-panel">
@@ -485,10 +509,6 @@ export default function TeacherApprovePage() {
             <span className="panel-tag">Login Dibutuhkan</span>
             <h2>Halaman ini hanya untuk teacher, homeroom, atau admin</h2>
           </div>
-          <p className="lead compact-lead">
-            Login dengan akun staff agar sistem bisa mengaktifkan approval guru
-            dan memandu siswa menyelesaikan transaksi keluar lewat halaman scan.
-          </p>
           <div className="button-row compact-button-row">
             <Link className="primary-button" href="/login">
               Buka login
@@ -501,10 +521,6 @@ export default function TeacherApprovePage() {
             <span className="panel-tag">Akses Ditolak</span>
             <h2>Role saat ini tidak memiliki izin approval guru</h2>
           </div>
-          <p className="lead compact-lead">
-            Role `{snapshot.appUser.role}` tidak termasuk jalur override guru.
-            Fitur ini hanya tersedia untuk `teacher`, `homeroom`, dan `admin`.
-          </p>
           <div className="button-row compact-button-row">
             <Link className="secondary-button" href={getDefaultRoute(snapshot)}>
               Buka halaman utama
@@ -512,382 +528,234 @@ export default function TeacherApprovePage() {
           </div>
         </section>
       ) : (
-        <>
+        <div className="flex flex-col gap-8">
           <section className="hero-grid">
-            <div className="content-panel">
+            <Card className="p-8">
               <div className="panel-header">
-                <span className="panel-tag">Approval Guru</span>
-                <h2>Pilih satu kelas lalu aktifkan approval massal</h2>
+                <span className="panel-tag">Quick Search & Filter</span>
+                <h2>Cari siswa atau filter per kelas</h2>
               </div>
-              <p className="lead compact-lead">
-                Gunakan filter kelas, pilih banyak siswa yang memang siap
-                mengambil HP, lalu kirim satu approval massal. Approval tetap
-                tersimpan sebagai izin aktif dan baru dikonsumsi saat siswa scan
-                container.
-              </p>
+              
+              <div className="flex flex-col gap-6 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="field-group">
+                    <span>Cari siswa</span>
+                    <input
+                      className="text-input"
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Nama, NIS, atau jurusan"
+                      type="text"
+                      value={search}
+                    />
+                  </div>
+                  <div className="field-group">
+                    <span>Filter kelas</span>
+                    <select
+                      className="text-input select-input"
+                      onChange={(event) => setSelectedClassName(event.target.value)}
+                      value={selectedClassName}
+                    >
+                      <option value={ALL_CLASSES}>Semua kelas</option>
+                      {classOptions.map((option) => (
+                        <option key={option.className} value={option.className}>
+                          {option.className} ({option.readyCount} siap)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-              <div className="approval-filter-grid">
-                <label className="field-group">
-                  <span>Filter kelas</span>
-                  <select
-                    className="text-input select-input"
-                    onChange={(event) => {
-                      setSelectedClassName(event.target.value);
-                      setApprovalError(null);
-                      setApprovalResult(null);
-                    }}
-                    value={selectedClassName}
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    variant={onlyReady ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => setOnlyReady(!onlyReady)}
                   >
-                    <option value={ALL_CLASSES}>Semua kelas</option>
-                    {classOptions.map((option) => (
-                      <option key={option.className} value={option.className}>
-                        {option.className} ({option.readyCount} siap / {option.totalCount} total)
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field-group">
-                  <span>Cari siswa</span>
-                  <input
-                    className="text-input"
-                    onChange={(event) => {
-                      setSearch(event.target.value);
-                    }}
-                    placeholder="Cari nama, NIS, jurusan, atau kelas"
-                    type="text"
-                    value={search}
-                  />
-                </label>
-              </div>
-
-              <div className="selection-toolbar">
-                <button
-                  className={onlyReady ? "secondary-button is-active-toggle" : "secondary-button"}
-                  onClick={() => {
-                    setOnlyReady((current) => !current);
-                  }}
-                  type="button"
-                >
-                  {onlyReady ? "Hanya siswa siap approval" : "Tampilkan semua siswa"}
-                </button>
-                <button
-                  className="secondary-button"
-                  disabled={readyStudentsInClass.length === 0}
-                  onClick={handleSelectAllReadyInClass}
-                  type="button"
-                >
-                  Pilih semua siap di {selectedClassLabel}
-                </button>
-                <button
-                  className="secondary-button"
-                  disabled={selectedStudentIds.length === 0}
-                  onClick={handleClearSelection}
-                  type="button"
-                >
-                  Kosongkan pilihan
-                </button>
-              </div>
-              <p className="session-meta">
-                {filteredStudents.length} siswa tampil, {readyStudentsInClass.length} siap
-                di {selectedClassLabel}, {selectedStudentIds.length} dipilih.
-              </p>
-
-              <label className="field-group">
-                <span>Pilih container tujuan</span>
-                <select
-                  className="text-input select-input"
-                  onChange={(event) => {
-                    setSelectedContainerId(event.target.value);
-                    setApprovalError(null);
-                    setApprovalResult(null);
-                  }}
-                  value={selectedContainerId}
-                >
-                  {containers.length === 0 ? (
-                    <option value="">Belum ada container aktif</option>
-                  ) : (
-                    containers.map((container) => (
-                      <option key={container.id} value={container.id}>
-                        {container.name} - {container.location}
-                      </option>
-                    ))
+                    {onlyReady ? "Hanya Siap Approval" : "Semua Siswa"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={readyStudentsInClass.length === 0}
+                    onClick={() => setSelectedStudentIds(readyStudentsInClass.map(s => s.id))}
+                  >
+                    Pilih Semua di {selectedClassLabel}
+                  </Button>
+                  {selectedStudentIds.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedStudentIds([])}
+                    >
+                      Batal Pilih ({selectedStudentIds.length})
+                    </Button>
                   )}
-                </select>
-              </label>
-
-              <div className="choice-grid">
-                {approvalOptions.map((option) => (
-                  <button
-                    className={
-                      option.value === approvalType
-                        ? "choice-card is-active"
-                        : "choice-card"
-                    }
-                    key={option.value}
-                    onClick={() => {
-                      setApprovalType(option.value);
-                      setApprovalError(null);
-                      setApprovalResult(null);
-                    }}
-                    type="button"
-                  >
-                    <span className="panel-tag">{option.value}</span>
-                    <strong>{option.label}</strong>
-                    <p>{option.description}</p>
-                  </button>
-                ))}
+                </div>
               </div>
-
-              <div className="scanner-controls">
-                <button
-                  className="primary-button"
-                  disabled={
-                    isSubmitting ||
-                    selectedStudentIds.length === 0 ||
-                    !selectedContainerId
-                  }
-                  onClick={() => {
-                    void handleApprove();
-                  }}
-                  type="button"
-                >
-                  {isSubmitting
-                    ? "Mengaktifkan approval massal..."
-                    : `Aktifkan approval untuk ${selectedStudentIds.length} siswa`}
-                </button>
-                <button
-                  className="secondary-button"
-                  disabled={isLoading}
-                  onClick={() => {
-                    void loadPanelData();
-                  }}
-                  type="button"
-                >
-                  {isLoading ? "Memuat..." : "Muat ulang data"}
-                </button>
-              </div>
-
-              {approvalError ? <p className="form-error">{approvalError}</p> : null}
-              {loadError ? <p className="form-error">{loadError}</p> : null}
-            </div>
+            </Card>
 
             <div className="signal-panel">
-              <span className="signal-label">Pilihan Massal</span>
-              <strong>{selectedStudentIds.length}</strong>
-              <p>
-                {selectedStudentIds.length === 0
-                  ? `Pilih siswa siap approval di ${selectedClassLabel} untuk mulai approval massal.`
-                  : `${selectedStudentIds.length} siswa siap diajukan sebagai satu batch approval ${approvalType.toLowerCase()}.`}
-              </p>
-              <span className="status-badge status-outside">
-                {selectedReadyInClassCount} terpilih di {selectedClassLabel}
-              </span>
-              {selectedContainer ? (
-                <p className="session-meta">
-                  Container tujuan: <strong>{selectedContainer.name}</strong> di{" "}
-                  {selectedContainer.location}
-                </p>
-              ) : null}
-              {selectedStudents.length > 0 ? (
-                <div className="selection-pill-list">
-                  {selectedStudents.slice(0, 8).map((student) => (
-                    <span className="status-badge status-pending" key={student.id}>
-                      {student.name}
-                    </span>
-                  ))}
-                  {selectedStudents.length > 8 ? (
-                    <span className="status-badge status-pending">
-                      +{selectedStudents.length - 8} lainnya
-                    </span>
-                  ) : null}
+              <span className="signal-label">Bulk Configuration</span>
+              <div className="flex flex-col gap-4 mt-2">
+                <div className="field-group">
+                  <span>Container Tujuan</span>
+                  <select
+                    className="text-input select-input"
+                    onChange={(event) => setSelectedContainerId(event.target.value)}
+                    value={selectedContainerId}
+                  >
+                    {containers.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
-              ) : null}
+                <div className="field-group">
+                  <span>Tipe Approval</span>
+                  <div className="flex gap-2">
+                    {approvalOptions.map((opt) => (
+                      <Button
+                        key={opt.value}
+                        variant={approvalType === opt.value ? "primary" : "secondary"}
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setApprovalType(opt.value)}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  className="w-full mt-2"
+                  disabled={selectedStudentIds.length === 0 || isSubmitting}
+                  isLoading={isSubmitting}
+                  onClick={handleApprove}
+                >
+                  Approve {selectedStudentIds.length} Siswa
+                </Button>
+              </div>
             </div>
           </section>
 
-          {approvalResult ? (
-            <section className="content-panel">
+          {approvalResult && (
+            <section className="content-panel border-2 border-accent/20">
               <div className="panel-header">
-                <span className="panel-tag">Hasil Bulk Approval</span>
-                <h2>Batch approval sudah diproses</h2>
+                <div className="flex justify-between items-center w-full">
+                  <div>
+                    <span className="panel-tag">Batch Results</span>
+                    <h2>Hasil Bulk Approval Terakhir</h2>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setApprovalResult(null)}>
+                    Tutup Hasil
+                  </Button>
+                </div>
               </div>
-              <p className="lead compact-lead">{approvalResult.message}</p>
-              <div className="result-grid">
-                <div className="summary-block">
+              <p className="lead compact-lead mt-2">{approvalResult.message}</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="bg-surface p-4 rounded-xl">
                   <span className="summary-label">Diproses</span>
-                  <strong>{approvalResult.bulk.processedCount}</strong>
-                  <p className="session-meta">
-                    dari {approvalResult.bulk.requestedCount} siswa
-                  </p>
+                  <strong className="text-xl block">{approvalResult.bulk.processedCount}</strong>
                 </div>
-                <div className="summary-block">
-                  <span className="summary-label">Baru / Update / Replay</span>
-                  <strong>
-                    {approvalResult.bulk.createdCount} / {approvalResult.bulk.updatedCount} /{" "}
-                    {approvalResult.bulk.replayedCount}
-                  </strong>
-                  <p className="session-meta">
-                    {approvalResult.bulk.skippedCount} siswa dilewati
-                  </p>
+                <div className="bg-surface p-4 rounded-xl">
+                  <span className="summary-label">Siswa Dilewati</span>
+                  <strong className="text-xl block">{approvalResult.bulk.skippedCount}</strong>
                 </div>
-                <div className="summary-block">
-                  <span className="summary-label">Operator</span>
-                  <strong>{approvalResult.approvedBy.name}</strong>
-                  <p className="session-meta">{approvalResult.approvedBy.role}</p>
-                </div>
-                <div className="summary-block">
+                <div className="bg-surface p-4 rounded-xl">
                   <span className="summary-label">Container</span>
-                  <strong>{approvalResult.container.name}</strong>
-                  <p className="session-meta">
-                    {approvalResult.container.location}
-                  </p>
+                  <strong className="text-lg block truncate">{approvalResult.container.name}</strong>
+                </div>
+                <div className="bg-surface p-4 rounded-xl">
+                  <span className="summary-label">Tipe</span>
+                  <strong className="text-lg block">{approvalResult.type}</strong>
                 </div>
               </div>
 
-              {successfulApprovalItems.length > 0 ? (
-                <>
-                  <div className="panel-header bulk-result-header">
-                    <span className="panel-tag">Siap Dipakai</span>
-                    <h2>Approval aktif yang berhasil diproses</h2>
+              {successfulApprovalItems.length > 0 && (
+                <div className="mt-8">
+                  <div className="panel-header mb-4">
+                    <span className="panel-tag">Success</span>
+                    <h3>Approval Aktif Berhasil Diproses</h3>
                   </div>
-                  <div className="container-grid">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {successfulApprovalItems.map((item) => (
                       <article
-                        className="container-card compact-summary"
+                        className="p-4 border border-line rounded-xl bg-white"
                         key={`${item.student.id}-${item.result}`}
                       >
-                        <div className="student-card-row">
+                        <div className="flex justify-between items-start">
                           <div>
-                            <span className="status-label">
-                              {item.student.className ?? "Tanpa kelas"}
-                            </span>
-                            <h3>{item.student.name ?? item.student.id}</h3>
+                            <span className="text-xs font-bold text-muted">{item.student.className}</span>
+                            <h4 className="font-bold">{item.student.name}</h4>
                           </div>
                           <span className={getBulkResultClass(item.result)}>
                             {getBulkResultLabel(item.result)}
                           </span>
                         </div>
-                        <p className="container-meta">
-                          {item.student.nis ? `NIS ${item.student.nis}` : "Data NIS tidak tersedia"}
-                        </p>
-                        <p className="container-meta">{item.message}</p>
-                        {item.approval ? (
-                          <p className="container-meta">
-                            Aktif sejak {formatDateTime(item.approval.approvedAt)} untuk{" "}
-                            {item.approval.container.name}
-                          </p>
-                        ) : null}
+                        <p className="text-xs text-muted mt-2">{item.message}</p>
                       </article>
                     ))}
                   </div>
-                </>
-              ) : null}
-
-              {skippedApprovalItems.length > 0 ? (
-                <>
-                  <div className="panel-header bulk-result-header">
-                    <span className="panel-tag">Perlu Tindak Lanjut</span>
-                    <h2>Siswa yang tidak ikut ter-approve pada batch ini</h2>
-                  </div>
-                  <div className="container-grid">
-                    {skippedApprovalItems.map((item) => (
-                      <article
-                        className="container-card compact-summary"
-                        key={`${item.student.id}-${item.result}`}
-                      >
-                        <div className="student-card-row">
-                          <div>
-                            <span className="status-label">
-                              {item.student.className ?? "Tanpa kelas"}
-                            </span>
-                            <h3>{item.student.name ?? item.student.id}</h3>
-                          </div>
-                          <span className={getBulkResultClass(item.result)}>
-                            {getBulkResultLabel(item.result)}
-                          </span>
-                        </div>
-                        <p className="container-meta">
-                          {item.student.nis ? `NIS ${item.student.nis}` : "Data NIS tidak tersedia"}
-                        </p>
-                        <p className="container-meta">{item.message}</p>
-                      </article>
-                    ))}
-                  </div>
-                </>
-              ) : null}
+                </div>
+              )}
             </section>
-          ) : null}
+          )}
 
-          {pendingApprovalStudents.length > 0 ? (
+          {activeApprovalsHistory.length > 0 && (
             <section className="content-panel">
               <div className="panel-header">
-                <span className="panel-tag">Menunggu Scan</span>
-                <h2>Approval aktif yang belum dipakai siswa</h2>
+                <span className="panel-tag">Active Approvals Today</span>
+                <h2>Siswa yang sudah di-approve & menunggu scan</h2>
               </div>
-              <div className="container-grid">
-                {pendingApprovalStudents.map((student) => (
-                  <article className="container-card" key={student.pendingApproval?.id}>
-                    <div className="student-card-row">
+              <div className="container-grid mt-4">
+                {activeApprovalsHistory.slice(0, 4).map((student) => (
+                  <Card key={student.id} className="p-4 bg-surface/50">
+                    <div className="flex justify-between items-start">
                       <div>
                         <span className="status-label">{student.className}</span>
-                        <h3>{student.name}</h3>
+                        <h3 className="text-lg font-bold">{student.name}</h3>
+                        <p className="session-meta mt-1">
+                          {student.pendingApproval?.type} • {formatDateTime(student.pendingApproval!.approvedAt)}
+                        </p>
                       </div>
-                      <span className="status-badge status-pending">
-                        {student.pendingApproval?.type}
-                      </span>
+                      <Badge variant="secondary">Active</Badge>
                     </div>
-                    <p className="container-meta">NIS {student.nis}</p>
-                    <p className="container-meta">
-                      Container: {student.pendingApproval?.container.name} |{" "}
-                      {student.pendingApproval?.container.location}
-                    </p>
-                    <p className="container-meta">
-                      Diaktifkan oleh {student.pendingApproval?.approvedBy.name} pada{" "}
-                      {student.pendingApproval
-                        ? formatDateTime(student.pendingApproval.approvedAt)
-                        : "-"}
-                    </p>
-                  </article>
+                  </Card>
                 ))}
               </div>
             </section>
-          ) : null}
+          )}
 
           <section className="content-panel">
             <div className="panel-header">
-              <span className="panel-tag">Daftar Siswa</span>
-              <h2>Pilih banyak siswa dalam satu kelas untuk approval massal</h2>
+              <span className="panel-tag">Student List</span>
+              <h2>{selectedClassLabel}</h2>
             </div>
+            
             {isLoading && students.length === 0 ? (
-              <ListSkeleton items={5} />
+              <DashboardListSkeleton items={5} />
             ) : filteredStudents.length === 0 ? (
-              <p className="lead compact-lead">
-                {onlyReady
-                  ? "Belum ada siswa yang siap di-approve untuk filter saat ini."
-                  : "Tidak ada siswa yang cocok dengan filter kelas atau pencarian saat ini."}
-              </p>
+              <Card className="p-12 text-center">
+                <p className="lead">Tidak ada siswa yang ditemukan.</p>
+              </Card>
             ) : (
               <div style={{ height: "700px", minHeight: "700px" }}>
                 <AutoSizer
                   renderProp={({ height, width }) => {
-                    if (!height || !width) {
-                      return null;
-                    }
-
-                    const columnCount = Math.max(1, Math.floor(width / (260 + 16)));
+                    if (!height || !width) return null;
+                    const columnCount = Math.max(1, Math.floor(width / (280 + 16)));
                     const rowCount = Math.ceil(filteredStudents.length / columnCount);
-                    
                     return (
                       <List
                         defaultHeight={700}
                         rowComponent={VirtualizedGridRow}
                         rowCount={rowCount}
-                        rowHeight={380}
+                        rowHeight={280}
                         rowProps={{
                           items: filteredStudents,
                           columnCount,
                           onToggle: handleToggleStudent,
+                          onQuickApprove: setQuickApproveStudent,
                           selectedStudentSet
                         }}
                         style={{ height, width }}
@@ -898,8 +766,66 @@ export default function TeacherApprovePage() {
               </div>
             )}
           </section>
-        </>
+
+          {/* Quick Approval Modal */}
+          <Modal
+            isOpen={!!quickApproveStudent}
+            onClose={() => setQuickApproveStudent(null)}
+            title="Quick Approval"
+            footer={
+              <div className="flex flex-col gap-3">
+                <Button
+                  className="w-full"
+                  isLoading={isSubmitting}
+                  onClick={handleQuickApprove}
+                >
+                  Konfirmasi Approval
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setQuickApproveStudent(null)}
+                >
+                  Batal
+                </Button>
+              </div>
+            }
+          >
+            {quickApproveStudent && (
+              <div className="flex flex-col gap-6">
+                <div>
+                  <p className="text-muted text-sm uppercase font-bold tracking-wider">Siswa</p>
+                  <h3 className="text-2xl font-bold mt-1">{quickApproveStudent.name}</h3>
+                  <p className="text-muted">{quickApproveStudent.className} • NIS {quickApproveStudent.nis}</p>
+                </div>
+
+                <div className="field-group">
+                  <span>Pilih Tipe Approval</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    {approvalOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        className={`choice-card ${quickApprovalType === opt.value ? "is-active" : ""}`}
+                        onClick={() => setQuickApprovalType(opt.value)}
+                      >
+                        <strong className="block text-lg">{opt.label}</strong>
+                        <p className="text-xs leading-tight mt-1">{opt.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-surface-strong p-4 rounded-xl">
+                  <p className="text-sm">
+                    HP akan dapat diambil di <strong>{selectedContainer?.name}</strong> segera setelah konfirmasi.
+                  </p>
+                </div>
+              </div>
+            )}
+          </Modal>
+        </div>
       )}
     </Layout>
   );
 }
+
