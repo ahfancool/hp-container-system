@@ -11,6 +11,7 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 
 import { formatDateTime } from "../../lib/format";
+import { translateError } from "../../lib/errors";
 
 function getSeverityClass(severity: AuditLogRecord["severity"]): string {
   if (severity === "ERROR") {

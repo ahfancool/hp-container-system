@@ -17,6 +17,7 @@ Catatan penting:
 - `production` adalah endpoint resmi yang dipakai harian
 - `staging` tetap aktif hanya untuk preview terbatas dan verifikasi deploy
 - perubahan data dari staging juga masuk ke data live karena databasenya sama
+- cron terjadwal hanya diaktifkan pada Worker `production`; `staging` sengaja tanpa cron agar tetap muat dalam limit Cloudflare account
 
 ## Target Arsitektur Production
 
@@ -88,6 +89,8 @@ npx wrangler secret put JWT_SECRET --env production
 Catatan:
 
 - `ALLOWED_ORIGIN` adalah non-secret config dan sudah dicontohkan di `wrangler.toml`.
+- Berdasarkan implementasi repo saat ini, `JWT_SECRET` hanya diperiksa keberadaannya di backend env validation dan belum dipakai untuk operasi JWT lain.
+- Jika legacy JWT secret belum siap, Anda dapat memakai placeholder non-kosong sementara seperti `TEMP_JWT_SECRET_UNUSED` agar deployment revisi ini tetap jalan.
 - Kalau domain sekolah berbeda, ganti nilai `ALLOWED_ORIGIN` sebelum deploy.
 - Karena mode saat ini `single Supabase`, secret Supabase untuk staging dan production bisa saja bernilai sama.
 - Meski begitu, simpan file env staging dan production secara terpisah agar pergantian arsitektur nanti tidak membingungkan.
@@ -98,6 +101,12 @@ Deploy Worker:
 npm run deploy:backend:staging
 npm run deploy:backend:production
 ```
+
+Catatan operasional cron:
+
+- `staging` tidak menjalankan cron archive, weekly report, atau deteksi violation terjadwal.
+- `production` menjalankan tiga cron tersebut.
+- Pemisahan ini sengaja dipakai agar total cron trigger tidak melewati limit akun Cloudflare.
 
 ## Langkah 3 - Siapkan Frontend Cloudflare Pages
 

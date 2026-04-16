@@ -113,7 +113,7 @@ export function MobileScannerShell({
     touched: manualTouched,
     handleChange: handleManualChange,
     handleBlur: handleManualBlur,
-    handleSubmit: handleManualSubmit,
+    handleSubmit: handleManualFormSubmit,
     setValues: setManualValues,
   } = useForm(
     { manualValue: "" },
@@ -373,17 +373,6 @@ export function MobileScannerShell({
     }
   };
 
-  const handleManualSubmit = async () => {
-    const nextContainerId = extractContainerId(manualValues.manualValue.trim());
-    if (!nextContainerId) {
-      toast.error("Format QR manual tidak valid.");
-      announceToScreenReader("Format QR manual tidak valid.");
-      return;
-    }
-    stopCamera();
-    await runPreview(nextContainerId, manualValues.manualValue.trim());
-  };
-
   const lastStatus = previewResult?.validation.lastTransaction?.action || "OUT";
   const currentAction = previewResult?.validation.actionPreview || (lastStatus === "IN" ? "OUT" : "IN");
 
@@ -450,7 +439,7 @@ export function MobileScannerShell({
             className="flex flex-col gap-2" 
             onSubmit={(e) => {
               e.preventDefault();
-              handleManualSubmit();
+              handleManualFormSubmit();
             }}
           >
             <div className="flex gap-2">

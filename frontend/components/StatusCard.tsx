@@ -1,3 +1,5 @@
+import { Card } from "./ui/Card";
+
 type StatusCardProps = {
   label: string;
   value: string;
@@ -6,11 +8,11 @@ type StatusCardProps = {
 
 export function StatusCard({ label, value, detail }: StatusCardProps) {
   return (
-    <article className="status-card">
+    <Card className="status-card">
       <span className="status-label">{label}</span>
       <strong className="status-value">{value}</strong>
       <p className="status-detail">{detail}</p>
-    </article>
+    </Card>
   );
 }
 

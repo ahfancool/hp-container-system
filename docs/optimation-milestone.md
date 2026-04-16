@@ -35,8 +35,48 @@ Urutan di bawah ini disusun berdasarkan dampak operasional paling cepat di lapan
 10. Milestone 23 - Device Fingerprinting Guardrail
 11. Milestone 16 - QR Regenerator Security (Anti-Fraud)
 12. Milestone 24 - Student Violation & Penalty System (Automated Discipline)
+13. Milestone 25 - Full Indonesian Localization & Accessibility (A11y)
+14. Milestone 26 - Mobile UX Optimization & Offline Awareness
 
 ---
+
+## Milestone 25 - Full Indonesian Localization & Accessibility (A11y)
+
+Masalah:
+Bahasa campuran (Inggris-Indonesia) membingungkan pengguna, dan aplikasi sulit diakses alat bantu (screen reader/keyboard).
+
+Optimasi:
+Standarisasi seluruh UI ke Bahasa Indonesia yang ramah sekolah dan implementasi standar aksesibilitas WCAG AA.
+
+Instruksi eksekusi:
+1. Ganti seluruh hardcoded string Inggris ke Bahasa Indonesia (misal: Submit -> Simpan, Dashboard -> Monitoring).
+2. Gunakan format tanggal dan waktu lokal (Senin, 14 April 2026; 07.30 WIB).
+3. Tambahkan `focus-visible` styles, ARIA labels, dan roles pada elemen interaktif.
+4. Implementasikan `aria-live` region untuk pengumuman hasil scan ke screen reader.
+
+Definition of done:
+1. Seluruh UI 100% berbahasa Indonesia yang konsisten.
+2. Navigasi keyboard berfungsi penuh dan kontras warna memenuhi standar WCAG AA.
+
+---
+
+## Milestone 26 - Mobile UX Optimization & Offline Awareness
+
+Masalah:
+Tabel data sulit dibaca di HP, dan pengguna sering tidak sadar saat koneksi internet terputus.
+
+Optimasi:
+Transformasi tabel menjadi tampilan kartu pada mobile dan penambahan indikator status koneksi yang eksplisit.
+
+Instruksi eksekusi:
+1. Gunakan CSS Grid/Flexbox untuk mengubah `.activity-table` menjadi `.activity-card` pada layar kecil.
+2. Tambahkan banner "Tidak ada koneksi internet" yang muncul secara real-time.
+3. Implementasikan deferred install prompt untuk meningkatkan retensi pengguna PWA.
+4. Nonaktifkan fitur scan secara eksplisit saat offline untuk menjaga integritas data waktu.
+
+Definition of done:
+1. Monitoring dapat dilakukan dengan nyaman di layar smartphone.
+2. Pengguna mendapatkan feedback instan saat status jaringan berubah.
 
 ## Milestone 13 - Supabase Query and RPC Optimization (Scalability Core)
 

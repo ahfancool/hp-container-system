@@ -1,0 +1,4 @@
+id,name,location,qr_secret_token,qr_code,is_active
+3a36be78-7a1d-47d2-a214-5d8f7c487f11,Container A,Ruang Tata Tertib,8d4f0f0a70d24b1fa10f8ad4d1bc6a21,container://3a36be78-7a1d-47d2-a214-5d8f7c487f11?t=8d4f0f0a70d24b1fa10f8ad4d1bc6a21,true
+65050506-01fd-48fb-90bf-978339e89d22,Container B,Koridor Lantai 2,9cb9d0d4c5e44d57a1a097d2edcf342b,container://65050506-01fd-48fb-90bf-978339e89d22?t=9cb9d0d4c5e44d57a1a097d2edcf342b,true
+9c8ff5e4-b779-4c31-a0e6-3b1884af0d33,Container C,Ruang BK,4f17d8e4e4e2418c9b59d00c840fe4c2,container://9c8ff5e4-b779-4c31-a0e6-3b1884af0d33?t=4f17d8e4e4e2418c9b59d00c840fe4c2,true

@@ -1,3 +1,5 @@
+import { Badge } from "./ui/Badge";
+
 type RoleBadgeProps = {
   role: "student" | "teacher" | "homeroom" | "admin";
 };
@@ -10,6 +12,10 @@ const roleLabels: Record<RoleBadgeProps["role"], string> = {
 };
 
 export function RoleBadge({ role }: RoleBadgeProps) {
-  return <span className="role-badge">{roleLabels[role]}</span>;
+  return (
+    <Badge variant="primary" className="role-badge">
+      {roleLabels[role]}
+    </Badge>
+  );
 }
 

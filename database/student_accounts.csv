@@ -1,0 +1,4 @@
+email,full_name,role,password,nis,class_name,major,grade_level,is_active
+ahmad.siswa@school.local,Ahmad Siswa,student,StudentPass123!,2026001,XII-A,IPA,12,true
+bunga.siswa@school.local,Bunga Siswa,student,StudentPass456!,2026002,XI-B,IPS,11,true
+ciara.siswa@school.local,Ciara Siswa,student,StudentPass789!,2026003,X-A,IPA,10,true

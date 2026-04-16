@@ -1,5 +1,5 @@
 import { defaultCache } from "@serwist/next/worker";
-import { type PrecacheEntry, Serwist } from "serwist";
+import { type PrecacheEntry, Serwist, NetworkOnly } from "serwist";
 
 declare const self: typeof globalThis & {
   __SW_MANIFEST: (string | PrecacheEntry)[];
@@ -17,11 +17,10 @@ const serwist = new Serwist({
       matcher: ({ url, request }) => 
         request.method !== "GET" || 
         url.pathname.includes("/api/") ||
-        url.hostname.includes("supabase.co"), // Don't cache Supabase calls either
-      strategy: "NetworkOnly",
+        url.hostname.includes("supabase.co"), // Don't cache Supabase calls either    
+      handler: new NetworkOnly(),
     },
     ...defaultCache,
   ],
 });
-
 serwist.addEventListeners();

@@ -16,11 +16,15 @@ DASHBOARD_CACHE_TTL_SECONDS = "10"
 binding = "AUDIT_ARCHIVE"
 bucket_name = "hp-container-audit-archive"
 
-[triggers]
-crons = ["0 2 * * *", "0 8 * * 1", "0 8 * * *"] # 2 AM Archive, 8 AM Monday Reports, 8 AM Daily Violations
-
 [env.staging]
 name = "hp-container-system-api-staging"
+
+[[env.staging.r2_buckets]]
+binding = "AUDIT_ARCHIVE"
+bucket_name = "hp-container-audit-archive"
+
+[env.staging.triggers]
+crons = []
 
 [env.staging.vars]
 APP_ENV = "staging"
@@ -34,6 +38,13 @@ DASHBOARD_CACHE_TTL_SECONDS = "10"
 
 [env.production]
 name = "hp-container-system-api-production"
+
+[[env.production.r2_buckets]]
+binding = "AUDIT_ARCHIVE"
+bucket_name = "hp-container-audit-archive"
+
+[env.production.triggers]
+crons = ["0 2 * * *", "0 8 * * 1", "0 8 * * *"] # 2 AM Archive, 8 AM Monday Reports, 8 AM Daily Violations
 
 [env.production.vars]
 APP_ENV = "production"

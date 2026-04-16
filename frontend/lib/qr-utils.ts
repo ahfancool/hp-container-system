@@ -20,7 +20,8 @@ export async function downloadQrAsPng(qrContent: string, filename: string) {
 
 export async function downloadQrAsSvg(qrContent: string, filename: string) {
   try {
-    const svgString = await QRCode.toString(qrContent, {
+    // Cast to any to bypass potential type definition mismatch
+    const svgString = await (QRCode as any).toString(qrContent, {
       type: "svg",
       errorCorrectionLevel: "M",
       margin: 1,

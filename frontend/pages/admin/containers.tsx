@@ -12,6 +12,7 @@ import {
 } from "../../lib/containers";
 import { showToast } from "../../components/ui/Toast";
 import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { Skeleton, TableSkeleton } from "../../components/ui/Skeleton";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Modal } from "../../components/ui/Modal";
@@ -19,6 +20,8 @@ import { getDefaultRoute } from "../../lib/navigation";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 import { downloadQrAsPng, downloadQrAsSvg } from "../../lib/qr-utils";
 
+import { useForm } from "../../hooks/useForm";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { formatDateTime } from "../../lib/format";
 import { translateError } from "../../lib/errors";
 
@@ -53,6 +56,8 @@ interface EditableCellProps {
   className?: string;
 }
 
+type ContainerFormValues = { name: string; location: string };
+
 function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -80,7 +85,7 @@ function EditableCell({ value, onSave, className = "" }: EditableCellProps) {
         ref={inputRef}
         className="text-input compact-input"
         value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={() => {
           onSave(editValue);
@@ -126,7 +131,7 @@ export default function AdminContainersPage() {
     handleBlur,
     handleSubmit,
     resetForm,
-  } = useForm(
+  } = useForm<ContainerFormValues>(
     { name: "", location: "" },
     {
       name: { required: true, min: 3 },
@@ -144,7 +149,7 @@ export default function AdminContainersPage() {
         resetForm();
         showToast.success(`Kontainer ${created.name} berhasil dibuat`);
       } catch (submitError) {
-        setError(translateError(submitError instanceof Error ? submitError.message : "Gagal membuat kontainer."));
+        setError(translateError(submitError instanceof Error ? submitError.message : "Gagal membuat kontainer.") || "Gagal membuat kontainer");
         throw submitError;
       }
     }
@@ -164,7 +169,7 @@ export default function AdminContainersPage() {
       const items = await fetchContainers(session.access_token, true);
       setContainers(items);
     } catch (loadError) {
-      setError(translateError(loadError instanceof Error ? loadError.message : "Gagal memuat daftar kontainer."));
+      setError(translateError(loadError instanceof Error ? loadError.message : "Gagal memuat daftar kontainer.") || "Gagal memuat daftar kontainer");
     } finally {
       setIsLoading(false);
     }
@@ -200,7 +205,7 @@ export default function AdminContainersPage() {
       setContainers(current => current.map(c => c.id === id ? { ...c, ...updates } : c));
       showToast.success("Kontainer berhasil diperbarui");
     } catch (e) {
-      showToast.error(translateError(e instanceof Error ? e.message : "Gagal memperbarui kontainer"));
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal memperbarui kontainer") || "Gagal memperbarui kontainer");
     }
   };
 
@@ -219,7 +224,7 @@ export default function AdminContainersPage() {
       showToast.success(`Kontainer ${deleteTarget.name} berhasil dihapus`);
       setDeleteTarget(null);
     } catch (e) {
-      showToast.error(translateError(e instanceof Error ? e.message : "Gagal menghapus kontainer"));
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal menghapus kontainer") || "Gagal menghapus kontainer");
     }
   };
 
@@ -231,7 +236,7 @@ export default function AdminContainersPage() {
       setContainers((current) => current.map((c) => (c.id === updated.id ? updated : c)));
       showToast.success(`Token QR untuk ${container.name} berhasil diperbarui`);
     } catch (e) {
-      showToast.error(translateError(e instanceof Error ? e.message : "Gagal me-reset token QR"));
+      showToast.error(translateError(e instanceof Error ? e.message : "Gagal me-reset token QR") || "Gagal me-reset token QR");
     }
   };
 
@@ -254,7 +259,7 @@ export default function AdminContainersPage() {
                   <Input
                     label="Nama kontainer"
                     value={values.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("name", e.target.value)}
                     onBlur={() => handleBlur("name")}
                     error={touched.name ? errors.name : undefined}
                     placeholder="Contoh: Kontainer A"
@@ -263,7 +268,7 @@ export default function AdminContainersPage() {
                   <Input
                     label="Lokasi"
                     value={values.location}
-                    onChange={(e) => handleChange("location", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange("location", e.target.value)}
                     onBlur={() => handleBlur("location")}
                     error={touched.location ? errors.location : undefined}
                     placeholder="Contoh: Gedung 1"
