@@ -2,11 +2,10 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { List, type RowComponentProps } from "react-window";
-import { AutoSizer } from "react-virtualized-auto-sizer";
 
 import { Layout } from "../components/Layout";
-import { CardSkeleton, ListSkeleton } from "../components/Skeleton";
+import { DashboardListSkeleton, Skeleton } from "../components/ui/Skeleton";
+import { showToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
 import { getDefaultRoute } from "../lib/navigation";
 import {
@@ -15,9 +14,6 @@ import {
 } from "../lib/dashboard";
 
 type DashboardStudentStatus = DashboardStatusResponse["students"]["inside"][number];
-type StudentStatusRowProps = {
-  items: DashboardStudentStatus[];
-};
 
 const AUTO_REFRESH_MS = 30_000;
 const ALL_CLASSES_VALUE = "__ALL_CLASSES__";
@@ -83,10 +79,10 @@ function getStatusClass(status: DashboardStudentStatus["phoneStatus"]): string {
   }
 
   if (status === "OUTSIDE") {
-    return "status-badge status-outside";
+    return "status-badge status-pending"; // Orange
   }
 
-  return "status-badge status-pending";
+  return "status-badge status-neutral"; // Gray
 }
 
 function getActivityTypeLabel(type: "REGULAR" | "PEMBELAJARAN" | "DARURAT"): string {
@@ -105,116 +101,14 @@ function getPendingApprovalLabel(type: "PEMBELAJARAN" | "DARURAT"): string {
   return type === "DARURAT" ? "Darurat" : "Pembelajaran";
 }
 
-// Memoized row component for stable rendering
-function StudentStatusRow({
-  index,
-  items,
-  style
-}: RowComponentProps<StudentStatusRowProps>) {
-  const student = items[index];
-
-  return (
-    <div style={{ ...style, paddingBottom: "14px" }}>
-      <article
-        className="student-dashboard-card fade-in hover-lift"
-        style={{ height: "calc(100% - 14px)", margin: 0 }}
-      >
-        <div className="student-card-row">
-          <div>
-            <span className="status-label">{student.className}</span>
-            <h3>{student.name}</h3>
-          </div>
-          <span className={getStatusClass(student.phoneStatus)}>
-            {getStatusLabel(student.phoneStatus)}
-          </span>
-        </div>
-        <p className="container-meta">
-          NIS {student.nis}
-          {student.major ? ` | ${student.major}` : ""}
-        </p>
-        {student.latestTransaction ? (
-          <>
-            <p className="container-meta">
-              Transaksi terakhir {student.latestTransaction.action}{" "}
-              {student.latestTransaction.type} pada{" "}
-              {formatDateTime(student.latestTransaction.timestamp)}
-            </p>
-            <p className="container-meta">
-              Container: {student.latestTransaction.containerName ?? "-"}
-              {student.latestTransaction.containerLocation
-                ? ` | ${student.latestTransaction.containerLocation}`
-                : ""}
-            </p>
-          </>
-        ) : (
-          <p className="container-meta">
-            Belum ada transaksi, jadi status HP siswa belum terbaca.
-          </p>
-        )}
-        {student.pendingApproval ? (
-          <div className="approval-inline-card compact-approval-card">
-            <span className="summary-label">Approval aktif</span>
-            <strong>{getPendingApprovalLabel(student.pendingApproval.type)}</strong>
-            <p className="session-meta">
-              Menunggu scan di {student.pendingApproval.container.name} sejak{" "}
-              {formatDateTime(student.pendingApproval.approvedAt)}.
-            </p>
-          </div>
-        ) : null}
-      </article>
-    </div>
-  );
-}
-
-function StudentStatusList({
-  emptyMessage,
-  items,
-  title
-}: {
-  emptyMessage: string;
-  items: DashboardStudentStatus[];
-  title: string;
-}) {
-  return (
-    <section className="content-panel">
-      <div className="panel-header">
-        <span className="panel-tag">Status Siswa</span>
-        <h2>{title}</h2>
-      </div>
-      {items.length === 0 ? (
-        <p className="lead compact-lead">{emptyMessage}</p>
-      ) : (
-        <div style={{ height: "600px", minHeight: "600px" }}>
-          <AutoSizer
-            renderProp={({ height, width }) => {
-              if (!height || !width) {
-                return null;
-              }
-
-              return (
-                <List
-                  defaultHeight={600}
-                  rowComponent={StudentStatusRow}
-                  rowCount={items.length}
-                  rowHeight={250}
-                  rowProps={{ items }}
-                  style={{ height, width }}
-                />
-              );
-            }}
-          />
-        </div>
-      )}
-    </section>
-  );
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const { isReady, session, snapshot } = useAuth();
   const [dashboard, setDashboard] = useState<DashboardStatusResponse | null>(null);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [selectedClassName, setSelectedClassName] = useState(ALL_CLASSES_VALUE);
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedContainerId, setSelectedContainerId] = useState("ALL");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -250,7 +144,7 @@ export default function DashboardPage() {
       const payload = await fetchDashboardStatus(accessToken);
       setDashboard(payload);
       if (mode === "refresh") {
-        toast.success("Dashboard diperbarui", { duration: 2000 });
+        showToast.success("Dashboard diperbarui");
       }
     } catch (loadError) {
       const message =
@@ -258,7 +152,7 @@ export default function DashboardPage() {
           ? loadError.message
           : "Gagal memuat dashboard monitoring.";
       setError(message);
-      toast.error(message);
+      showToast.error(message);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -282,15 +176,32 @@ export default function DashboardPage() {
   }, [accessToken, canViewDashboard]);
 
   const classOptions = dashboard?.classSummaries.map((item) => item.className) ?? [];
-  const insideStudents = dashboard
-    ? filterStudents(dashboard.students.inside, selectedClassName, search)
+  const containerOptions = dashboard?.containerSummaries ?? [];
+
+  const allStudents = dashboard
+    ? [
+        ...dashboard.students.inside,
+        ...dashboard.students.outside,
+        ...dashboard.students.notScanned
+      ]
     : [];
-  const outsideStudents = dashboard
-    ? filterStudents(dashboard.students.outside, selectedClassName, search)
-    : [];
-  const notScannedStudents = dashboard
-    ? filterStudents(dashboard.students.notScanned, selectedClassName, search)
-    : [];
+
+  const filteredStudents = allStudents.filter((student) => {
+    const matchesClass =
+      selectedClassName === ALL_CLASSES_VALUE ||
+      student.className === selectedClassName;
+
+    const matchesStatus =
+      selectedStatus === "ALL" ||
+      student.phoneStatus === selectedStatus;
+
+    const matchesContainer =
+      selectedContainerId === "ALL" ||
+      student.latestTransaction?.containerId === selectedContainerId;
+
+    return matchesClass && matchesStatus && matchesContainer && matchesSearch(student, search);
+  });
+
   const emergencyStudents = dashboard
     ? filterStudents(dashboard.emergencyReleases, selectedClassName, search)
     : [];
@@ -299,22 +210,15 @@ export default function DashboardPage() {
       (item) =>
         selectedClassName === ALL_CLASSES_VALUE || item.className === selectedClassName
     ) ?? [];
-  const pendingApprovalStudents = [
-    ...insideStudents,
-    ...outsideStudents,
-    ...notScannedStudents
-  ].filter((student) => student.pendingApproval);
+  const pendingApprovalStudents = allStudents.filter((student) => student.pendingApproval);
   const displayedPendingApprovalCount = pendingApprovalStudents.length;
-  const displayedOverrideOutCount = outsideStudents.filter(
-    (student) => student.latestTransaction?.type !== "REGULAR"
-  ).length;
 
-  const displayedTotalStudents =
-    insideStudents.length + outsideStudents.length + notScannedStudents.length;
+  const displayedTotalStudents = filteredStudents.length;
+  const insideCount = filteredStudents.filter(s => s.phoneStatus === 'INSIDE').length;
   const displayedInsideRate =
     displayedTotalStudents === 0
       ? 0
-      : Number(((insideStudents.length / displayedTotalStudents) * 100).toFixed(1));
+      : Number(((insideCount / displayedTotalStudents) * 100).toFixed(1));
 
   const heroTitle = isAdmin
     ? "Pantau kondisi HP seluruh sekolah dari satu dashboard."
@@ -423,65 +327,44 @@ export default function DashboardPage() {
           {error ? <p className="form-error">{error}</p> : null}
 
           {isLoading && !dashboard ? (
-            <div className="card-grid" style={{ marginTop: "32px" }}>
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <ListSkeleton items={3} />
+            <div className="flex flex-col gap-8 mt-8">
+              <div className="card-grid">
+                <Skeleton height="160px" borderRadius="18px" />
+                <Skeleton height="160px" borderRadius="18px" />
+                <Skeleton height="160px" borderRadius="18px" />
+                <Skeleton height="160px" borderRadius="18px" />
               </div>
+              <DashboardListSkeleton items={3} />
             </div>
           ) : dashboard ? (
             <>
               <section className="card-grid">
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">HP Di Container</span>
-                  <strong className="status-value">{insideStudents.length}</strong>
+                  <span className="panel-tag">Phones in container</span>
+                  <strong className="status-value">{dashboard.summary.insideCount}</strong>
                   <p className="status-detail">
-                    Siswa yang transaksi terakhirnya `IN`.
+                    Siswa yang HP-nya tersimpan aman di dalam container.
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">HP Di Luar</span>
-                  <strong className="status-value">{outsideStudents.length}</strong>
+                  <span className="panel-tag">Phones outside</span>
+                  <strong className="status-value">{dashboard.summary.outsideCount}</strong>
                   <p className="status-detail">
-                    Siswa yang transaksi terakhirnya `OUT`.
+                    Siswa yang sedang memegang HP (sudah ambil).
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Approval Menunggu</span>
-                  <strong className="status-value">{displayedPendingApprovalCount}</strong>
+                  <span className="panel-tag">Not scanned</span>
+                  <strong className="status-value">{dashboard.summary.notScannedCount}</strong>
                   <p className="status-detail">
-                    Izin guru aktif yang belum dipakai scan siswa pada tampilan ini.
+                    Siswa yang belum melakukan scan hari ini.
                   </p>
                 </article>
                 <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Belum Scan</span>
-                  <strong className="status-value">{notScannedStudents.length}</strong>
+                  <span className="panel-tag">Emergency active</span>
+                  <strong className="status-value">{dashboard.summary.emergencyReleaseCount}</strong>
                   <p className="status-detail">
-                    Siswa yang belum memiliki histori transaksi.
-                  </p>
-                </article>
-                <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Darurat Aktif</span>
-                  <strong className="status-value">{emergencyStudents.length}</strong>
-                  <p className="status-detail">
-                    HP yang masih berada di luar dengan tipe `DARURAT`.
-                  </p>
-                </article>
-                <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Override Keluar</span>
-                  <strong className="status-value">{displayedOverrideOutCount}</strong>
-                  <p className="status-detail">
-                    Total HP di luar yang keluar lewat jalur override.
-                  </p>
-                </article>
-                <article className="status-card fade-in hover-lift">
-                  <span className="panel-tag">Inside Rate</span>
-                  <strong className="status-value">{displayedInsideRate}%</strong>
-                  <p className="status-detail">
-                    Persentase HP yang masih berada di container untuk tampilan
-                    filter saat ini.
+                    HP yang keluar lewat jalur darurat dan belum kembali.
                   </p>
                 </article>
               </section>
@@ -505,6 +388,38 @@ export default function DashboardPage() {
                       {classOptions.map((className) => (
                         <option key={className} value={className}>
                           {className}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field-group">
+                    <span>Filter status</span>
+                    <select
+                      className="text-input select-input"
+                      onChange={(event) => {
+                        setSelectedStatus(event.target.value);
+                      }}
+                      value={selectedStatus}
+                    >
+                      <option value="ALL">Semua status</option>
+                      <option value="INSIDE">Di container</option>
+                      <option value="OUTSIDE">Di luar</option>
+                      <option value="NOT_SCANNED">Belum scan</option>
+                    </select>
+                  </label>
+                  <label className="field-group">
+                    <span>Filter container</span>
+                    <select
+                      className="text-input select-input"
+                      onChange={(event) => {
+                        setSelectedContainerId(event.target.value);
+                      }}
+                      value={selectedContainerId}
+                    >
+                      <option value="ALL">Semua container</option>
+                      {containerOptions.map((container) => (
+                        <option key={container.id} value={container.id}>
+                          {container.name} ({container.location})
                         </option>
                       ))}
                     </select>
@@ -657,24 +572,63 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              <section className="dashboard-columns">
-                <StudentStatusList
-                  emptyMessage="Tidak ada siswa dengan status HP di dalam container untuk filter ini."
-                  items={insideStudents}
-                  title="Siswa yang HP Masih di Container"
-                />
-                <StudentStatusList
-                  emptyMessage="Tidak ada siswa dengan status HP di luar container untuk filter ini."
-                  items={outsideStudents}
-                  title="Siswa yang HP Sudah Diambil"
-                />
+              <section className="content-panel">
+                <div className="panel-header">
+                  <span className="panel-tag">Monitoring Table</span>
+                  <h2>Daftar Status HP Siswa</h2>
+                </div>
+                <div className="activity-table">
+                  <div className="activity-row" style={{ fontWeight: 'bold', background: 'rgba(30, 41, 59, 0.05)' }}>
+                    <div className="activity-main-info">
+                      <span>Siswa</span>
+                    </div>
+                    <div className="activity-type-info">
+                      <span>Status & Container</span>
+                    </div>
+                    <div className="activity-meta-info desktop-only">
+                      <span>Terakhir Scan</span>
+                    </div>
+                  </div>
+                  {filteredStudents.length === 0 ? (
+                    <p className="lead compact-lead" style={{ padding: '20px' }}>
+                      Tidak ada siswa yang sesuai dengan filter.
+                    </p>
+                  ) : (
+                    filteredStudents.map((student) => (
+                      <article className="activity-row" key={student.id}>
+                        <div className="activity-main-info">
+                          <div className="activity-student-info">
+                            <strong>{student.name}</strong>
+                            <span className="session-meta">
+                              {student.className} | NIS {student.nis}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="activity-type-info">
+                          <span className={getStatusClass(student.phoneStatus)}>
+                            {getStatusLabel(student.phoneStatus)}
+                          </span>
+                          <span className="session-meta">
+                            {student.latestTransaction?.containerName ?? "-"}
+                          </span>
+                        </div>
+                        <div className="activity-meta-info desktop-only">
+                          <span className="session-meta">
+                            {student.latestTransaction 
+                              ? `${student.latestTransaction.action} ${getActivityTypeLabel(student.latestTransaction.type)}`
+                              : "Belum ada"}
+                          </span>
+                          <span className="session-meta">
+                            {student.latestTransaction 
+                              ? formatDateTime(student.latestTransaction.timestamp)
+                              : "-"}
+                          </span>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
               </section>
-
-              <StudentStatusList
-                emptyMessage="Semua siswa pada tampilan ini sudah pernah scan."
-                items={notScannedStudents}
-                title="Siswa yang Belum Scan"
-              />
 
               <section className="content-panel">
                 <div className="panel-header">
