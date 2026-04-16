@@ -294,7 +294,7 @@ export default function AdminContainersPage() {
               <span className="signal-label">Registry</span>
               <strong>{containers.length}</strong>
               <p>Container aktif yang terdaftar.</p>
-              <Button variant="secondary" size="sm" onClick={loadContainers}>Muat ulang</Button>
+              <Button variant="secondary" size="sm" onClick={loadContainers} aria-label="Muat ulang daftar container">Muat ulang</Button>
             </div>
           </section>
 
@@ -310,13 +310,13 @@ export default function AdminContainersPage() {
               <EmptyState title="Kosong" description="Belum ada container." />
             ) : (
               <div className="activity-table">
-                <div className="activity-row font-bold bg-surface-strong">
+                <div className="activity-row font-bold bg-surface-strong" role="row">
                   <div>Nama & Lokasi</div>
                   <div className="text-center">QR & Status</div>
                   <div className="text-right">Aksi</div>
                 </div>
                 {containers.map((container) => (
-                  <div className="activity-row" key={container.id}>
+                  <div className="activity-row" key={container.id} role="row">
                     <div className="flex flex-col gap-1">
                       <EditableCell 
                         value={container.name} 
@@ -330,19 +330,24 @@ export default function AdminContainersPage() {
                       />
                     </div>
                     <div className="flex items-center justify-center gap-4">
-                      <button onClick={() => setQrTarget(container)} className="hover:opacity-80 transition-opacity">
+                      <button 
+                        onClick={() => setQrTarget(container)} 
+                        className="hover:opacity-80 transition-opacity"
+                        aria-label={`Lihat QR Code untuk ${container.name}`}
+                      >
                         <MiniQrPreview qrCode={container.qrCode} />
                       </button>
                       <button 
                         onClick={() => handleUpdate(container.id, { isActive: !container.isActive })}
                         className={`badge ${container.isActive ? "badge-primary" : "badge-outline"}`}
+                        aria-label={`Ubah status ${container.name} menjadi ${container.isActive ? "Nonaktif" : "Aktif"}`}
                       >
                         {container.isActive ? "Aktif" : "Nonaktif"}
                       </button>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="secondary" size="sm" onClick={() => setQrTarget(container)}>QR</Button>
-                      <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleteTarget(container)}>Hapus</Button>
+                      <Button variant="secondary" size="sm" onClick={() => setQrTarget(container)} aria-label={`Detail QR ${container.name}`}>QR</Button>
+                      <Button variant="ghost" size="sm" className="text-danger" onClick={() => setDeleteTarget(container)} aria-label={`Hapus container ${container.name}`}>Hapus</Button>
                     </div>
                   </div>
                 ))}

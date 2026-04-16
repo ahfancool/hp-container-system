@@ -14,6 +14,7 @@ import {
 } from "../lib/transaction";
 import { addToBuffer } from "../lib/offline-buffer";
 import { getFingerprint } from "../lib/fingerprint";
+import { announceToScreenReader } from "../lib/a11y";
 import { Modal } from "../components/ui/Modal";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -183,6 +184,7 @@ export function MobileScannerShell({
     clearFlowState();
     setDetectedPayload(rawPayload);
     setScanTone("processing");
+    announceToScreenReader("Memvalidasi scan, mohon tunggu...");
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setScanTone("preview");
@@ -237,11 +239,18 @@ export function MobileScannerShell({
       setScanTone(result.validation.rules.isAllowed ? "preview" : "error");
       setIsConfirmModalOpen(true);
       triggerVibration(result.validation.rules.isAllowed ? 30 : [40, 30, 40]);
+      
+      if (result.validation.rules.isAllowed) {
+        announceToScreenReader(`Scan berhasil. Siap untuk ${getActionLabel(result.validation.actionPreview)}`);
+      } else {
+        announceToScreenReader(`Scan ditolak. ${result.validation.penaltyStatus?.message || "Tidak sesuai jadwal"}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Preview scan gagal.";
       setPreviewError(message);
       setScanTone("error");
       triggerVibration([50, 40, 50]);
+      announceToScreenReader(`Scan gagal. ${message}`);
     } finally {
       isBusyRef.current = false;
       setIsPreviewing(false);
@@ -341,6 +350,7 @@ export function MobileScannerShell({
         setIsConfirmModalOpen(false);
         setIsSuccessModalOpen(true);
         setScanTone("success-in");
+        announceToScreenReader("Transaksi offline disimpan secara lokal.");
         return;
       }
 
@@ -359,9 +369,12 @@ export function MobileScannerShell({
       setIsSuccessModalOpen(true);
       setScanTone(result.transaction.action === "IN" ? "success-in" : "success-out");
       triggerVibration(result.transaction.action === "IN" ? 90 : [60, 40, 60]);
+      announceToScreenReader(`Transaksi berhasil. HP telah ${result.transaction.action === "IN" ? "tersimpan" : "diambil"}`);
     } catch (error) {
-      setTransactionError(error instanceof Error ? error.message : "Transaksi gagal.");
+      const message = error instanceof Error ? error.message : "Transaksi gagal.";
+      setTransactionError(message);
       setScanTone("error");
+      announceToScreenReader(`Transaksi gagal. ${message}`);
     } finally {
       isBusyRef.current = false;
       setIsSubmittingTransaction(false);
@@ -395,11 +408,12 @@ export function MobileScannerShell({
           muted
           playsInline
           ref={videoRef}
+          aria-label="Kamera scanner QR"
         />
-        <canvas className="hidden" ref={canvasRef} />
+        <canvas className="hidden" ref={canvasRef} aria-hidden="true" />
         
         {/* QR Alignment Overlay */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center" aria-hidden="true">
           <div className="w-64 h-64 border-2 border-white/80 rounded-[40px] shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)] flex items-center justify-center">
              <div className="w-16 h-1 w-white/30 rounded-full absolute top-8" />
              <div className="w-64 h-64 border-2 border-accent rounded-[40px] animate-pulse" />
@@ -410,13 +424,13 @@ export function MobileScannerShell({
         </div>
 
         {isStartingCamera && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white" aria-live="polite">
             <p className="font-bold">Membuka Kamera...</p>
           </div>
         )}
 
         {isPreviewing && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white backdrop-blur-sm">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white backdrop-blur-sm" aria-live="polite">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
               <p className="font-bold">Memvalidasi Scan...</p>
@@ -429,7 +443,13 @@ export function MobileScannerShell({
       <Card className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <span className="panel-tag">Input Manual</span>
-          <form className="flex flex-col gap-2" onSubmit={handleManualSubmit}>
+          <form 
+            className="flex flex-col gap-2" 
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleManualSubmit();
+            }}
+          >
             <div className="flex gap-2">
               <input
                 id="input-manualvalue"
@@ -439,6 +459,9 @@ export function MobileScannerShell({
                 placeholder=" container://..."
                 type="text"
                 value={manualValues.manualValue}
+                aria-label="Manual QR payload"
+                aria-invalid={manualTouched.manualValue && !!manualErrors.manualValue}
+                aria-describedby={manualTouched.manualValue && manualErrors.manualValue ? "manual-qr-error" : undefined}
               />
               <Button 
                 variant="secondary" 
@@ -446,19 +469,26 @@ export function MobileScannerShell({
                 type="submit"
                 disabled={manualTouched.manualValue && !!manualErrors.manualValue}
                 title={manualErrors.manualValue}
+                aria-label="Cek QR manual"
               >
                 Cek
               </Button>
             </div>
             {manualTouched.manualValue && manualErrors.manualValue && (
-              <span className="text-xs text-danger">{manualErrors.manualValue}</span>
+              <span id="manual-qr-error" className="text-xs text-danger" role="alert">{manualErrors.manualValue}</span>
             )}
           </form>
         </div>
         
         {!isCameraActive && !isPreviewing && !isConfirmModalOpen && !isSuccessModalOpen && (
-          <Button onClick={startCamera} className="w-full" size="lg">
+          <Button onClick={startCamera} className="w-full" size="lg" aria-label="Mulai scan kamera baru">
             Scan QR Baru
+          </Button>
+        )}
+        
+        {isCameraActive && (
+          <Button variant="secondary" onClick={stopCamera} className="w-full" aria-label="Matikan kamera">
+            Matikan Kamera
           </Button>
         )}
       </Card>
@@ -493,7 +523,7 @@ export function MobileScannerShell({
         {previewResult && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface-strong">
-              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent" aria-hidden="true">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={currentAction === "IN" ? "M19 14l-7 7m0 0l-7-7m7 7V3" : "M5 10l7-7m0 0l7 7m-7-7v18"} />
                 </svg>
@@ -516,7 +546,7 @@ export function MobileScannerShell({
             </div>
 
             {!previewResult.validation.rules.isAllowed && (
-              <div className="p-4 rounded-2xl bg-danger-bg text-danger flex flex-col gap-1">
+              <div className="p-4 rounded-2xl bg-danger-bg text-danger flex flex-col gap-1" role="alert">
                  <p className="font-bold">Scan Tidak Diizinkan</p>
                  <p className="text-sm opacity-90">
                    {previewResult.validation.penaltyStatus?.message || 
@@ -526,7 +556,7 @@ export function MobileScannerShell({
             )}
             
             {transactionError && (
-              <div className="p-4 rounded-2xl bg-danger-bg text-danger text-sm font-semibold">
+              <div className="p-4 rounded-2xl bg-danger-bg text-danger text-sm font-semibold" role="alert">
                 {transactionError}
               </div>
             )}
@@ -544,7 +574,7 @@ export function MobileScannerShell({
         title="Transaksi Berhasil"
       >
         <div className="flex flex-col items-center gap-6 py-4">
-          <div className="w-24 h-24 rounded-full bg-success-bg flex items-center justify-center text-success animate-bounce">
+          <div className="w-24 h-24 rounded-full bg-success-bg flex items-center justify-center text-success animate-bounce" aria-hidden="true">
             <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
@@ -581,7 +611,7 @@ export function MobileScannerShell({
       </Modal>
 
       {cameraError && (
-        <Card variant="danger" className="text-center">
+        <Card variant="danger" className="text-center" role="alert">
           <p className="font-bold mb-2">Masalah Kamera</p>
           <p className="text-sm opacity-90 mb-4">{cameraError}</p>
           <Button variant="secondary" onClick={() => void startCamera()}>Coba Lagi</Button>
@@ -589,7 +619,7 @@ export function MobileScannerShell({
       )}
 
       {previewError && (
-        <Card variant="danger" className="text-center">
+        <Card variant="danger" className="text-center" role="alert">
           <p className="font-bold mb-2">Gagal Validasi</p>
           <p className="text-sm opacity-90 mb-4">{previewError}</p>
           <Button variant="secondary" onClick={() => void startCamera()}>Scan Ulang</Button>

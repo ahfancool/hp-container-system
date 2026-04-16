@@ -16,6 +16,7 @@ export const Input: React.FC<InputProps> = ({
   ...props 
 }) => {
   const inputId = id || (label ? `input-${label.toLowerCase().replace(/\s+/g, "-")}` : undefined);
+  const errorId = error ? `${inputId}-error` : undefined;
   
   return (
     <div className={`field-group ${containerClassName}`.trim()}>
@@ -23,9 +24,11 @@ export const Input: React.FC<InputProps> = ({
       <input
         id={inputId}
         className={`text-input ${error ? "border-danger" : ""} ${className}`.trim()}
+        aria-invalid={!!error}
+        aria-describedby={errorId}
         {...props}
       />
-      {error && <span className="text-xs text-danger mt-1">{error}</span>}
+      {error && <span id={errorId} className="text-xs text-danger mt-1" role="alert">{error}</span>}
     </div>
   );
 };

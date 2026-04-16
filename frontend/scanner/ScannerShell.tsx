@@ -12,6 +12,7 @@ import {
   submitPhoneTransaction,
   type TransactionResponse
 } from "../lib/transaction";
+import { announceToScreenReader } from "../lib/a11y";
 
 const readinessNotes = [
   "Kamera memakai Browser Camera API melalui getUserMedia.",
@@ -251,11 +252,13 @@ export function ScannerShell({
 
       setScanResult(result);
       setStatusMessage("Payload scan tervalidasi oleh backend.");
+      announceToScreenReader(`Validasi berhasil. Aksi: ${result.validation.actionPreview} di ${result.validation.container.name}`);
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Gagal mengirim scan."
-      );
+      const message =
+        error instanceof Error ? error.message : "Gagal mengirim scan.";
+      setSubmitError(message);
       setStatusMessage("Backend menolak atau gagal memproses payload scan.");
+      announceToScreenReader(`Gagal validasi. ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -286,11 +289,13 @@ export function ScannerShell({
         validation: result.validation
       });
       setStatusMessage("Transaksi berhasil dicatat ke database.");
+      announceToScreenReader(`Transaksi berhasil. HP telah ${result.transaction.action === "IN" ? "tersimpan" : "diambil"}`);
     } catch (error) {
-      setTransactionError(
-        error instanceof Error ? error.message : "Gagal mencatat transaksi."
-      );
+      const message =
+        error instanceof Error ? error.message : "Gagal mencatat transaksi.";
+      setTransactionError(message);
       setStatusMessage("Transaksi ditolak atau gagal dicatat.");
+      announceToScreenReader(`Gagal mencatat transaksi. ${message}`);
     } finally {
       setIsRecordingTransaction(false);
     }
@@ -327,10 +332,11 @@ export function ScannerShell({
             muted
             playsInline
             ref={videoRef}
+            aria-label="Kamera scanner QR"
           />
-          <canvas className="scanner-canvas" ref={canvasRef} />
+          <canvas className="scanner-canvas" ref={canvasRef} aria-hidden="true" />
           <div className="camera-reticle" aria-hidden="true" />
-          <p className="camera-label">
+          <p className="camera-label" aria-live="polite">
             {isCameraActive ? "Arahkan kamera ke QR container" : "Kamera belum aktif"}
           </p>
         </div>
@@ -343,6 +349,7 @@ export function ScannerShell({
               void startCamera();
             }}
             type="button"
+            aria-label={isStartingCamera ? "Mengaktifkan kamera..." : "Aktifkan kamera scanner"}
           >
             {isStartingCamera ? "Mengaktifkan kamera..." : "Aktifkan kamera"}
           </button>
@@ -352,8 +359,10 @@ export function ScannerShell({
             onClick={() => {
               stopCamera();
               setStatusMessage("Kamera dihentikan.");
+              announceToScreenReader("Kamera scanner dihentikan.");
             }}
             type="button"
+            aria-label="Hentikan kamera scanner"
           >
             Hentikan kamera
           </button>
@@ -361,6 +370,7 @@ export function ScannerShell({
             className="secondary-button"
             onClick={handleReset}
             type="button"
+            aria-label="Reset hasil scan"
           >
             Reset scan
           </button>
@@ -374,10 +384,11 @@ export function ScannerShell({
             placeholder="container://xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
             type="text"
             value={manualValue}
+            aria-label="Manual QR payload input"
           />
         </label>
 
-        <div className="scan-status-card">
+        <div className="scan-status-card" role="status">
           <span className="summary-label">Status scanner</span>
           <strong>{statusMessage}</strong>
           {rawScanValue ? (

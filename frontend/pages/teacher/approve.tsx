@@ -545,21 +545,25 @@ export default function TeacherApprovePage() {
               <div className="flex flex-col gap-6 mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="field-group">
-                    <span>Cari siswa</span>
+                    <label htmlFor="search-student">Cari siswa</label>
                     <input
+                      id="search-student"
                       className="text-input"
                       onChange={(event) => setSearch(event.target.value)}
                       placeholder="Nama, NIS, atau jurusan"
                       type="text"
                       value={search}
+                      aria-label="Cari siswa berdasarkan nama atau NIS"
                     />
                   </div>
                   <div className="field-group">
-                    <span>Filter kelas</span>
+                    <label htmlFor="filter-class">Filter kelas</label>
                     <select
+                      id="filter-class"
                       className="text-input select-input"
                       onChange={(event) => setSelectedClassName(event.target.value)}
                       value={selectedClassName}
+                      aria-label="Filter berdasarkan kelas"
                     >
                       <option value={ALL_CLASSES}>Semua kelas</option>
                       {classOptions.map((option) => (
@@ -576,6 +580,7 @@ export default function TeacherApprovePage() {
                     variant={onlyReady ? "primary" : "secondary"}
                     size="sm"
                     onClick={() => setOnlyReady(!onlyReady)}
+                    aria-label={onlyReady ? "Tampilkan semua siswa" : "Hanya tampilkan siswa yang siap approval"}
                   >
                     {onlyReady ? "Hanya Siap Approval" : "Semua Siswa"}
                   </Button>
@@ -584,6 +589,7 @@ export default function TeacherApprovePage() {
                     size="sm"
                     disabled={readyStudentsInClass.length === 0}
                     onClick={() => setSelectedStudentIds(readyStudentsInClass.map(s => s.id))}
+                    aria-label={`Pilih semua siswa di kelas ${selectedClassLabel}`}
                   >
                     Pilih Semua di {selectedClassLabel}
                   </Button>
@@ -592,6 +598,7 @@ export default function TeacherApprovePage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedStudentIds([])}
+                      aria-label="Batalkan semua pilihan siswa"
                     >
                       Batal Pilih ({selectedStudentIds.length})
                     </Button>
@@ -604,19 +611,21 @@ export default function TeacherApprovePage() {
               <span className="signal-label">Bulk Configuration</span>
               <div className="flex flex-col gap-4 mt-2">
                 <div className="field-group">
-                  <span>Container Tujuan</span>
+                  <label htmlFor="bulk-container">Container Tujuan</label>
                   <select
+                    id="bulk-container"
                     className="text-input select-input"
                     onChange={(event) => setSelectedContainerId(event.target.value)}
                     value={selectedContainerId}
+                    aria-label="Pilih container tujuan untuk approval massal"
                   >
                     {containers.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 </div>
-                <div className="field-group">
-                  <span>Tipe Approval</span>
+                <fieldset className="field-group">
+                  <legend className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Tipe Approval</legend>
                   <div className="flex gap-2">
                     {approvalOptions.map((opt) => (
                       <Button
@@ -625,17 +634,19 @@ export default function TeacherApprovePage() {
                         size="sm"
                         className="flex-1"
                         onClick={() => setApprovalType(opt.value)}
+                        aria-pressed={approvalType === opt.value}
                       >
                         {opt.label}
                       </Button>
                     ))}
                   </div>
-                </div>
+                </fieldset>
                 <Button
                   className="w-full mt-2"
                   disabled={selectedStudentIds.length === 0 || isSubmitting}
                   isLoading={isSubmitting}
                   onClick={handleApprove}
+                  aria-label={`Berikan approval untuk ${selectedStudentIds.length} siswa terpilih`}
                 >
                   Approve {selectedStudentIds.length} Siswa
                 </Button>
@@ -805,21 +816,22 @@ export default function TeacherApprovePage() {
                   <p className="text-muted">{quickApproveStudent.className} • NIS {quickApproveStudent.nis}</p>
                 </div>
 
-                <div className="field-group">
-                  <span>Pilih Tipe Approval</span>
+                <fieldset className="field-group">
+                  <legend className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Pilih Tipe Approval</legend>
                   <div className="grid grid-cols-2 gap-3">
                     {approvalOptions.map((opt) => (
                       <button
                         key={opt.value}
                         className={`choice-card ${quickApprovalType === opt.value ? "is-active" : ""}`}
                         onClick={() => setQuickApprovalType(opt.value)}
+                        aria-pressed={quickApprovalType === opt.value}
                       >
                         <strong className="block text-lg">{opt.label}</strong>
                         <p className="text-xs leading-tight mt-1">{opt.description}</p>
                       </button>
                     ))}
                   </div>
-                </div>
+                </fieldset>
 
                 <div className="bg-surface-strong p-4 rounded-xl">
                   <p className="text-sm">

@@ -199,8 +199,8 @@ export default function AdminAuditPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 <div className="field-group">
-                  <span>Severity</span>
-                  <select className="text-input select-input" value={severity} onChange={e => setSeverity(e.target.value as any)}>
+                  <label htmlFor="filter-severity">Severity</label>
+                  <select id="filter-severity" className="text-input select-input" value={severity} onChange={e => setSeverity(e.target.value as any)} aria-label="Filter berdasarkan severity">
                     <option value="">Semua</option>
                     <option value="INFO">INFO</option>
                     <option value="WARN">WARN</option>
@@ -208,8 +208,8 @@ export default function AdminAuditPage() {
                   </select>
                 </div>
                 <div className="field-group">
-                  <span>Role Aktor</span>
-                  <select className="text-input select-input" value={actorRole} onChange={e => setActorRole(e.target.value)}>
+                  <label htmlFor="filter-role">Role Aktor</label>
+                  <select id="filter-role" className="text-input select-input" value={actorRole} onChange={e => setActorRole(e.target.value)} aria-label="Filter berdasarkan role aktor">
                     <option value="">Semua Role</option>
                     <option value="admin">Admin</option>
                     <option value="teacher">Teacher</option>
@@ -219,8 +219,8 @@ export default function AdminAuditPage() {
                   </select>
                 </div>
                 <div className="field-group">
-                  <span>Aktor Spesifik</span>
-                  <select className="text-input select-input" value={actorUserId} onChange={e => setActorUserId(e.target.value)}>
+                  <label htmlFor="filter-user">Aktor Spesifik</label>
+                  <select id="filter-user" className="text-input select-input" value={actorUserId} onChange={e => setActorUserId(e.target.value)} aria-label="Filter berdasarkan aktor spesifik">
                     <option value="">Semua Pengguna</option>
                     {users.map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
@@ -228,16 +228,16 @@ export default function AdminAuditPage() {
                   </select>
                 </div>
                 <div className="field-group">
-                  <span>Mulai Tanggal</span>
-                  <input type="date" className="text-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                  <label htmlFor="filter-date-from">Mulai Tanggal</label>
+                  <input id="filter-date-from" type="date" className="text-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} aria-label="Filter mulai tanggal" />
                 </div>
                 <div className="field-group">
-                  <span>Sampai Tanggal</span>
-                  <input type="date" className="text-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                  <label htmlFor="filter-date-to">Sampai Tanggal</label>
+                  <input id="filter-date-to" type="date" className="text-input" value={dateTo} onChange={e => setDateTo(e.target.value)} aria-label="Filter sampai tanggal" />
                 </div>
                 <div className="field-group">
-                  <span>Event Type</span>
-                  <input className="text-input" value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Contoh: auth.login" />
+                  <label htmlFor="filter-event">Event Type</label>
+                  <input id="filter-event" className="text-input" value={eventType} onChange={e => setEventType(e.target.value)} placeholder="Contoh: auth.login" aria-label="Cari berdasarkan tipe event" />
                 </div>
               </div>
 

@@ -41,6 +41,7 @@ export function HeaderSessionStatus() {
           void signOut();
         }}
         type="button"
+        aria-label="Keluar dari akun"
       >
         Keluar
       </button>

@@ -62,6 +62,19 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
   const { snapshot, isReady } = useAuth();
   const router = useRouter();
   const navigationItems = getNavigationItems(snapshot);
+  const [announcement, setAnnouncement] = useState("");
+
+  // Global listener for accessibility announcements
+  useEffect(() => {
+    const handleAnnounce = (e: CustomEvent<string>) => {
+      setAnnouncement(e.detail);
+      // Clear after some time so it can be announced again if same message
+      setTimeout(() => setAnnouncement(""), 3000);
+    };
+
+    window.addEventListener("a11y-announce" as any, handleAnnounce as any);
+    return () => window.removeEventListener("a11y-announce" as any, handleAnnounce as any);
+  }, []);
 
   useEffect(() => {
     if (!isReady) return;
@@ -90,11 +103,28 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </Head>
 
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent"
+      >
+        Skip to main content
+      </a>
+
+      {/* Screen Reader Announcements */}
+      <div 
+        className="sr-only" 
+        role="status" 
+        aria-live="polite" 
+        aria-atomic="true"
+      >
+        {announcement}
+      </div>
+
       {/* Desktop Sidebar */}
       {snapshot && (
-        <aside className="desktop-sidebar">
-          <Link href="/" className="sidebar-brand">
-            <span className="topbar-label" style={{ margin: 0 }}>HP Container</span>
+        <aside className="desktop-sidebar" role="navigation" aria-label="Sidebar">
+          <Link href="/" className="sidebar-brand" aria-label="HP Container Home">
+            <span className="topbar-label" style={{ margin: 0 }} aria-hidden="true">HP Container</span>
             <strong className="text-xl">Sistem Sekolah</strong>
           </Link>
           
@@ -106,6 +136,7 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
                   key={item.href}
                   href={item.href}
                   className={`nav-link ${isActive ? "is-active" : ""}`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {getIcon(item.label)}
                   {item.label}
@@ -122,15 +153,15 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
 
       <div className="main-content-wrapper">
         {/* Mobile Topbar */}
-        <header className="topbar lg:hidden">
-          <Link className="topbar-brand" href="/">
+        <header className="topbar lg:hidden" role="banner">
+          <Link className="topbar-brand" href="/" aria-label="HP Container Home">
             <p className="topbar-label">{eyebrow}</p>
             <h1 className="topbar-title">{title}</h1>
           </Link>
           <HeaderSessionStatus />
         </header>
 
-        <main className="page-body">
+        <main className="page-body" id="main-content" role="main">
            <div className="app-shell">
               {children}
            </div>
@@ -138,7 +169,7 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
 
         {/* Mobile Bottom Nav */}
         {snapshot && (
-          <nav className="mobile-bottom-nav">
+          <nav className="mobile-bottom-nav" role="navigation" aria-label="Mobile Navigation">
             {navigationItems.map((item) => {
               const isActive = router.pathname.startsWith(item.href);
               return (
@@ -146,6 +177,7 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
                   key={item.href}
                   href={item.href}
                   className={`mobile-nav-item ${isActive ? "is-active" : ""}`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {getIcon(item.label)}
                   <span>{item.label}</span>
