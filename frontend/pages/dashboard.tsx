@@ -110,6 +110,10 @@ export default function DashboardPage() {
   const [selectedStatus, setSelectedStatus] = useState("ALL");
   const [selectedContainerId, setSelectedContainerId] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [changedStudentIds, setChangedStudentIds] = useState<Set<string>>(new Set());
+  const [refreshInterval, setRefreshInterval] = useState(AUTO_REFRESH_MS);
 
   useEffect(() => {
     if (router.query.search) {
@@ -142,8 +146,40 @@ export default function DashboardPage() {
 
     try {
       const payload = await fetchDashboardStatus(accessToken);
+      
+      // Detect changes in students
+      if (dashboard) {
+        const nextChangedIds = new Set<string>();
+        const currentStudents = [
+          ...dashboard.students.inside,
+          ...dashboard.students.outside,
+          ...dashboard.students.notScanned
+        ];
+        const nextStudents = [
+          ...payload.students.inside,
+          ...payload.students.outside,
+          ...payload.students.notScanned
+        ];
+
+        for (const next of nextStudents) {
+          const prev = currentStudents.find(s => s.id === next.id);
+          if (prev && prev.latestTransaction?.timestamp !== next.latestTransaction?.timestamp) {
+            nextChangedIds.add(next.id);
+          }
+        }
+        
+        if (nextChangedIds.size > 0) {
+          setChangedStudentIds(nextChangedIds);
+          // Clear highlight after 3 seconds
+          setTimeout(() => setChangedStudentIds(new Set()), 3000);
+        }
+      }
+
       setDashboard(payload);
-      if (mode === "refresh") {
+      setLastUpdated(new Date());
+      if (mode === "refresh" && !isPaused) {
+        // Silent success for auto-refresh
+      } else if (mode === "refresh") {
         showToast.success("Dashboard diperbarui");
       }
     } catch (loadError) {
@@ -165,15 +201,37 @@ export default function DashboardPage() {
     }
 
     void loadDashboard("initial");
+  }, [accessToken, canViewDashboard]);
+
+  useEffect(() => {
+    if (!accessToken || !canViewDashboard || isPaused) {
+      return;
+    }
 
     const intervalId = window.setInterval(() => {
       void loadDashboard("refresh");
-    }, AUTO_REFRESH_MS);
+    }, refreshInterval);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [accessToken, canViewDashboard]);
+  }, [accessToken, canViewDashboard, isPaused, refreshInterval, dashboard]);
+
+  const getTimeAgo = () => {
+    if (!lastUpdated) return "";
+    const seconds = Math.floor((new Date().getTime() - lastUpdated.getTime()) / 1000);
+    if (seconds < 5) return "baru saja";
+    return `${seconds} detik lalu`;
+  };
+
+  const [timeAgoText, setTimeAgo] = useState("");
+
+  useEffect(() => {
+    const tid = setInterval(() => {
+      setTimeAgo(getTimeAgo());
+    }, 1000);
+    return () => clearInterval(tid);
+  }, [lastUpdated]);
 
   const classOptions = dashboard?.classSummaries.map((item) => item.className) ?? [];
   const containerOptions = dashboard?.containerSummaries ?? [];
@@ -286,6 +344,13 @@ export default function DashboardPage() {
                 >
                   {isRefreshing ? "Menyegarkan..." : "Refresh dashboard"}
                 </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setIsPaused(!isPaused)}
+                  type="button"
+                >
+                  {isPaused ? "Lanjutkan Auto" : "Jeda Auto"}
+                </button>
                 {isAdmin ? (
                   <Link className="secondary-button" href="/admin/audit">
                     Buka audit
@@ -298,16 +363,24 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="signal-panel">
-              <span className="signal-label">Ringkasan Sekolah</span>
+              <div className="flex justify-between items-start">
+                <span className="signal-label">Ringkasan Sekolah</span>
+                {!isPaused && (
+                  <span className={`live-indicator ${isRefreshing ? 'is-refreshing' : ''}`}>
+                    Live
+                  </span>
+                )}
+              </div>
               <strong>
                 {dashboard
                   ? `${dashboard.summary.insideCount} HP masih di container`
                   : "Memuat dashboard"}
               </strong>
               <p>
-                {dashboard
-                  ? `Terakhir diperbarui ${formatDateTime(dashboard.generatedAt)}. Auto-refresh berjalan tiap 30 detik.`
+                {lastUpdated
+                  ? `Diperbarui ${timeAgoText}.`
                   : "Menghubungkan dashboard ke backend monitoring."}
+                {!isPaused && ` Auto-refresh ${refreshInterval / 1000}s.`}
               </p>
               {dashboard ? (
                 <>
@@ -595,7 +668,10 @@ export default function DashboardPage() {
                     </p>
                   ) : (
                     filteredStudents.map((student) => (
-                      <article className="activity-row" key={student.id}>
+                      <article 
+                        className={`activity-row ${changedStudentIds.has(student.id) ? 'row-highlight' : ''}`} 
+                        key={student.id}
+                      >
                         <div className="activity-main-info">
                           <div className="activity-student-info">
                             <strong>{student.name}</strong>
@@ -660,7 +736,10 @@ export default function DashboardPage() {
                       ? dashboard.recentActivities
                       : dashboard.recentActivities.slice(0, 5)
                     ).map((activity) => (
-                      <article className="activity-row" key={activity.id}>
+                      <article 
+                        className={`activity-row ${changedStudentIds.has(activity.student.id) ? 'row-highlight' : ''}`} 
+                        key={activity.id}
+                      >
                         <div className="activity-main-info">
                           <span className={`activity-icon-badge ${activity.action === "IN" ? "is-in" : "is-out"}`}>
                             {activity.action === "IN" ? "↓" : "↑"}

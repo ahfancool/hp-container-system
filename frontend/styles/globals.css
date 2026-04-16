@@ -767,6 +767,46 @@ a {
   }
 }
 
+/* Real-time Animations */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ef4444;
+}
+
+.live-indicator::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: blink 1.5s infinite;
+}
+
+.live-indicator.is-refreshing::before {
+  animation: blink 0.3s infinite;
+}
+
+@keyframes highlight-fade {
+  0% { background: rgba(37, 99, 235, 0.15); }
+  100% { background: rgba(255, 255, 255, 0.35); }
+}
+
+.row-highlight {
+  animation: highlight-fade 2s ease-out forwards;
+}
+
 .dashboard-filter-grid {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
