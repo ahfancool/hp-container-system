@@ -45,10 +45,12 @@ QR payload:
 ## Skenario 1 - Login Role
 
 1. Buka `/login`.
-2. Login sebagai `admin@school.local`.
-3. Pastikan halaman sesi aktif menampilkan role `admin`.
-4. Logout.
-5. Ulangi untuk:
+2. Tekan `Tab` satu kali dari bagian atas halaman.
+3. Pastikan skip link ke konten utama muncul saat fokus keyboard dan kartu login tetap berada di tengah.
+4. Login sebagai `admin@school.local`.
+5. Pastikan halaman sesi aktif menampilkan role `admin`.
+6. Logout.
+7. Ulangi untuk:
    - `rina.guru@school.local`
    - `ahmad.siswa@school.local`
    - `bunga.siswa@school.local`
@@ -59,6 +61,8 @@ Expected:
 - Guru terlihat sebagai `teacher`
 - Siswa terlihat sebagai `student`
 - Ahmad dan Bunga harus menunjukkan status student linked
+- Skip link hanya terlihat saat fokus keyboard dan tidak menggeser layout login saat belum difokuskan
+- Logo login terlihat proporsional pada viewport desktop maupun mobile
 
 ## Skenario 2 - Halaman Scan Student
 

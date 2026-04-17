@@ -192,6 +192,7 @@ Script akan memverifikasi:
 
 Manual smoke check yang tetap wajib:
 
+- halaman `/login` tetap centered, dan skip link keyboard muncul saat fokus tanpa menggeser layout ketika belum difokuskan
 - halaman scan menampilkan preview sebelum transaksi dikonfirmasi
 - input manual tetap terlihat saat kamera tidak tersedia
 - approval guru membuat status `Menunggu Scan`, bukan langsung `OUT`

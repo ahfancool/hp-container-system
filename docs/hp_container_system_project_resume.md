@@ -2,8 +2,8 @@
 
 ### Resume Teknis Kanonis
 
-**Versi:** 1.4  
-**Tanggal sinkronisasi:** 16 April 2026  
+**Versi:** 1.4.1  
+**Tanggal sinkronisasi:** 17 April 2026  
 **Status dokumen:** Sumber kebenaran teknis utama untuk isi repo ini.  
 **Dokumen roadmap pendamping:** `docs/optimation-milestone.md` tetap dipakai sebagai referensi milestone, tetapi implementasi aktual dan status siap-uji harus mengikuti dokumen ini.
 
@@ -104,7 +104,7 @@ Stack utama saat ini:
     Sudah aktif dalam bentuk tabel `student_violations`, halaman `/admin/violations`, dan aturan penalti pada RPC scan.
 
 11. **Milestone 25 - Full Indonesian Localization & Accessibility (A11y)**  
-    Sudah aktif. Seluruh UI menggunakan Bahasa Indonesia standar sekolah. Dukungan keyboard (focus rings), ARIA labels, dan `aria-live` untuk pengumuman scan sudah diimplementasikan.
+    Sudah aktif. Seluruh UI menggunakan Bahasa Indonesia standar sekolah. Dukungan keyboard (focus rings), ARIA labels, `aria-live` untuk pengumuman scan, dan skip link publik yang tidak menggeser layout sebelum fokus keyboard sudah diimplementasikan.
 
 12. **Milestone 26 - Mobile UX Optimization & Offline Awareness**  
     Sudah aktif. Tabel monitoring bertransformasi menjadi tampilan kartu pada mobile. Banner status koneksi dan deferred install prompt PWA sudah tersedia. Fitur scan otomatis nonaktif saat offline dengan pesan edukatif.
@@ -133,7 +133,7 @@ Stack utama saat ini:
 ### Verifikasi yang baru ditambahkan:
 
 - **Typecheck & Build**: Pastikan `npm run typecheck` dan `npm run build` lulus di folder `frontend`.
-- **Accessibility**: Gunakan keyboard (Tab) untuk memastikan seluruh elemen interaktif dapat dijangkau.
+- **Accessibility**: Gunakan keyboard (Tab) untuk memastikan seluruh elemen interaktif dapat dijangkau, termasuk skip link pada `/login` yang harus muncul tanpa menggeser posisi kartu login.
 - **Localization**: Pastikan tidak ada string Inggris yang tersisa (kecuali istilah teknis dalam detail audit).
 - **Responsive**: Uji tampilan pada resolusi < 768px untuk melihat transformasi tabel ke kartu.
 
@@ -141,11 +141,12 @@ Stack utama saat ini:
 
 ## 12. Ringkasan Verifikasi Terakhir
 
-Per 16 April 2026:
+Per 17 April 2026:
 
 - Dasbor didesain ulang dengan polling real-time (30 detik) dan indikator "Aktif".
 - Alur perizinan guru dipercepat dengan modal **Quick Approve**.
 - Manajemen kontainer admin mendukung **Edit Inline** dan **Unduh QR (PNG/SVG)**.
 - Halaman **Riwayat Siswa** baru di `/history` sudah aktif.
 - Validasi form diperkuat dengan feedback real-time dan proteksi perubahan yang belum disimpan.
+- Halaman login kini memakai logo yang lebih proporsional, dan skip link tidak lagi mengubah centering layout sebelum menerima fokus keyboard.
 - Seluruh sistem lulus uji TypeScript dan Build lokal.

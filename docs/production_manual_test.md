@@ -37,15 +37,19 @@ QR payload:
 ## Skenario 1 - Login
 
 1. Buka `/login`.
-2. Login sebagai `admin@school.local`.
-3. Pastikan sesi aktif terbaca sebagai `admin`.
-4. Logout.
-5. Ulangi untuk `rina.guru@school.local` dan `ahmad.siswa@school.local`.
+2. Tekan `Tab` satu kali dari bagian atas halaman.
+3. Pastikan skip link ke konten utama muncul saat fokus keyboard dan kartu login tetap berada di tengah.
+4. Login sebagai `admin@school.local`.
+5. Pastikan sesi aktif terbaca sebagai `admin`.
+6. Logout.
+7. Ulangi untuk `rina.guru@school.local` dan `ahmad.siswa@school.local`.
 
 Expected:
 
 - Role terbaca benar
 - Student account menunjukkan student linked
+- Skip link hanya terlihat saat fokus keyboard dan tidak menggeser layout login saat belum difokuskan
+- Logo login terlihat proporsional pada viewport desktop maupun mobile
 
 ## Skenario 2 - Scan Student
 

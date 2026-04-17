@@ -31,7 +31,7 @@ Karena `staging` dan `production` menunjuk ke database yang sama, maka:
 
 - cek apakah halaman bisa dibuka setelah deploy
 - verifikasi login singkat oleh admin atau operator yang ditunjuk
-- cek `/login` dan pastikan halaman tidak menampilkan error fetch sebelum uji role lain
+- cek `/login` dan pastikan halaman tidak menampilkan error fetch; tekan `Tab` sekali untuk memastikan skip link fokus tanpa menggeser layout
 - cek endpoint `/health`
 - cek halaman tertentu tanpa membuat perubahan data bila memungkinkan
 - uji transaksi hanya jika sudah disetujui dan semua pihak paham bahwa data live akan berubah
@@ -57,7 +57,7 @@ Karena `staging` dan `production` menunjuk ke database yang sama, maka:
 - Pakai akun uji yang sudah ditetapkan bila memungkinkan.
 - Jika uji membuat transaksi nyata, catat konsekuensinya ke operator sekolah.
 - Setelah uji selesai, cek audit log untuk memastikan jejak perubahan terbaca.
-- Setelah deploy frontend, lakukan smoke test minimum ke `/`, `/login`, dan `/scan` sebelum URL dibagikan ke operator.
+- Setelah deploy frontend, lakukan smoke test minimum ke `/`, `/login`, dan `/scan` sebelum URL dibagikan ke operator, termasuk cek fokus keyboard di `/login`.
 
 ## Kapan Harus Pindah Ke Dual Supabase
 
