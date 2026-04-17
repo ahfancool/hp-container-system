@@ -62,6 +62,7 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
   const router = useRouter();
   const navigationItems = getNavigationItems(snapshot);
   const [announcement, setAnnouncement] = useState("");
+  const isPublicRoute = PUBLIC_ROUTES.includes(router.pathname);
 
   // Global listener for accessibility announcements
   useEffect(() => {
@@ -78,7 +79,6 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
   useEffect(() => {
     if (!isReady) return;
 
-    const isPublicRoute = PUBLIC_ROUTES.includes(router.pathname);
     if (!snapshot) {
       if (!isPublicRoute) {
         void router.replace(`/login?redirect=${encodeURIComponent(router.asPath)}`);
@@ -107,7 +107,7 @@ export function Layout({ title, eyebrow, children }: LayoutProps) {
 
       <a
         href="#main-content"
-        className="absolute sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[200] focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent"
+        className="skip-link"
       >
         Skip to main content
       </a>

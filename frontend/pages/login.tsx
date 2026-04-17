@@ -42,20 +42,33 @@ export default function LoginPage() {
 
   return (
     <Layout title="Masuk Sistem" eyebrow="Akses Pengguna">
-      <div className="flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="flex flex-col items-center">
-            {/* Logo Placeholder */}
-            <div className="w-14 h-14 bg-accent/10 rounded-xl flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <section className="login-shell">
+        <div className="login-panel">
+          <div className="login-hero">
+            <div className="login-mark" aria-hidden="true">
+              <svg className="login-mark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h1 className="text-3xl font-extrabold text-ink text-center">HP Container</h1>
-            <p className="mt-2 text-sm text-muted text-center">Sistem Manajemen Penyimpanan Sekolah</p>
+            <div>
+              <p className="kicker">Akses Aman</p>
+              <h1>HP Container</h1>
+            </div>
+            <p className="lead compact-lead">
+              Masuk dengan akun sekolah untuk membuka scan siswa, monitoring guru,
+              dan kontrol admin dari satu sistem yang rapi di desktop maupun mobile.
+            </p>
+            <div className="role-checklist login-role-grid">
+              {roleChecklist.map((item) => (
+                <Card className="role-checklist-item" key={item.role}>
+                  <RoleBadge role={item.role} />
+                  <p>{item.description}</p>
+                </Card>
+              ))}
+            </div>
           </div>
 
-          <Card className="shadow-xl">
+          <Card className="content-panel login-form-panel shadow-xl">
             <CardHeader className="text-center">
               <span className="panel-tag">Email dan Password</span>
               <h2>Masuk ke Akun Anda</h2>
@@ -64,24 +77,12 @@ export default function LoginPage() {
               <LoginForm />
             </CardContent>
           </Card>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="p-4 text-center">
-              <p className="text-xs font-bold text-accent uppercase mb-1">Siswa</p>
-              <p className="text-[10px] text-muted line-clamp-2">Scan & Kelola HP</p>
-            </Card>
-            <Card className="p-4 text-center">
-              <p className="text-xs font-bold text-warning uppercase mb-1">Staf</p>
-              <p className="text-[10px] text-muted line-clamp-2">Pantau & Beri Izin</p>
-            </Card>
-          </div>
         </div>
-      </div>
+      </section>
 
       {snapshot ? (
-        <Card className="content-panel mt-12">
+        <Card className="content-panel login-session-panel">
           <CardHeader>
-...
             <span className="panel-tag">Sesi Aktif</span>
             <h2>Profil yang berhasil dibaca dari backend</h2>
           </CardHeader>

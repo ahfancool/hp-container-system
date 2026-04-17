@@ -5,7 +5,6 @@ import {
   useState,
   type MutableRefObject
 } from "react";
-import { toast } from "sonner";
 
 import { submitScanValidation, type ScanValidationResponse } from "../lib/scan";
 import {
@@ -375,89 +374,143 @@ export function MobileScannerShell({
 
   const lastStatus = previewResult?.validation.lastTransaction?.action || "OUT";
   const currentAction = previewResult?.validation.actionPreview || (lastStatus === "IN" ? "OUT" : "IN");
+  const successAction = transactionResult?.transaction.action ?? previewResult?.validation.actionPreview ?? "IN";
+  const stageLabel = isPreviewing
+    ? "Memvalidasi Scan"
+    : isStartingCamera
+      ? "Membuka Kamera"
+      : isCameraActive
+        ? "Kamera Aktif"
+        : "Siap Scan";
+  const stageMessage = isPreviewing
+    ? "Tunggu sebentar, QR sedang dicek ke backend."
+    : isStartingCamera
+      ? "Sistem sedang meminta akses kamera belakang."
+      : isCameraActive
+        ? "Arahkan QR container ke area fokus sampai terbaca otomatis."
+        : "Gunakan kamera untuk scan cepat atau buka input manual jika kamera bermasalah.";
 
   return (
-    <section className="flex flex-col gap-6 w-full max-w-lg mx-auto">
-      {/* 1. Top: Current Phone Status */}
-      <Card className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <span className="panel-tag">Status HP Saat Ini</span>
-          <Badge variant={lastStatus === "IN" ? "primary" : "outline"}>
-            {lastStatus === "IN" ? "Terdata di Kontainer" : "Ada pada Siswa"}
-          </Badge>
+    <section className="scanner-mobile-shell">
+      <Card className={`scanner-focus-panel tone-${scanTone}`}>
+        <div className="scanner-student-card scanner-student-card-compact">
+          <div className="session-role-row">
+            <span className="panel-tag">Status HP Saat Ini</span>
+            <Badge variant={lastStatus === "IN" ? "primary" : "outline"}>
+              {lastStatus === "IN" ? "Terdata di Kontainer" : "Ada pada Siswa"}
+            </Badge>
+          </div>
+          <strong>{studentName}</strong>
+          <p>NIS {studentNis} | {studentClassName}</p>
         </div>
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xl font-bold">{studentName}</h3>
-          <p className="text-sm text-muted">NIS {studentNis} | {studentClassName}</p>
+
+        <div className="camera-shell live-camera-shell scan-stage-shell">
+          <video
+            autoPlay
+            className="scanner-video"
+            muted
+            playsInline
+            ref={videoRef}
+            aria-label="Kamera scanner QR"
+          />
+          <canvas className="scanner-canvas" ref={canvasRef} aria-hidden="true" />
+          <div className="camera-reticle" aria-hidden="true" />
+          <div className="scan-stage-overlay" aria-live="polite">
+            <span className="scan-stage-overlay-label">{stageLabel}</span>
+            <strong>{isCameraActive ? "Sejajarkan QR dalam area fokus" : "Buka kamera untuk mulai scan"}</strong>
+            <span>{stageMessage}</span>
+          </div>
+
+          {isStartingCamera && (
+            <div className="scan-stage-state" aria-live="polite">
+              <div className="scan-stage-state-inner">
+                <div className="scan-stage-spinner spinner" aria-hidden="true" />
+                <p className="font-bold">Membuka kamera...</p>
+              </div>
+            </div>
+          )}
+
+          {isPreviewing && (
+            <div className="scan-stage-state" aria-live="polite">
+              <div className="scan-stage-state-inner">
+                <div className="scan-stage-spinner spinner" aria-hidden="true" />
+                <p className="font-bold">Memvalidasi scan...</p>
+              </div>
+            </div>
+          )}
         </div>
+
+        <div className="scanner-controls scan-primary-actions">
+          {!isCameraActive && !isPreviewing && !isConfirmModalOpen && !isSuccessModalOpen && (
+            <Button onClick={startCamera} className="w-full" size="lg" aria-label="Mulai scan kamera baru">
+              Scan QR Baru
+            </Button>
+          )}
+
+          {isCameraActive && (
+            <Button variant="secondary" onClick={stopCamera} className="w-full" aria-label="Matikan kamera">
+              Matikan Kamera
+            </Button>
+          )}
+        </div>
+
+        {cameraError && (
+          <div className="scan-blocking-note" role="alert">
+            <span className="panel-tag">Masalah Kamera</span>
+            <strong>{cameraError}</strong>
+          </div>
+        )}
+
+        {previewError && (
+          <div className="scan-blocking-note" role="alert">
+            <span className="panel-tag">Gagal Validasi</span>
+            <strong>{previewError}</strong>
+          </div>
+        )}
       </Card>
 
-      {/* 2. Center: Camera Scanner View */}
-      <div className="relative aspect-[4/5] rounded-[32px] overflow-hidden bg-black shadow-2xl">
-        <video
-          autoPlay
-          className="absolute inset-0 w-full h-full object-cover"
-          muted
-          playsInline
-          ref={videoRef}
-          aria-label="Kamera scanner QR"
-        />
-        <canvas className="hidden" ref={canvasRef} aria-hidden="true" />
-        
-        {/* QR Alignment Overlay */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center" aria-hidden="true">
-          <div className="w-64 h-64 border-2 border-white/80 rounded-[40px] shadow-[0_0_0_100vmax_rgba(0,0,0,0.5)] flex items-center justify-center">
-             <div className="w-16 h-1 w-white/30 rounded-full absolute top-8" />
-             <div className="w-64 h-64 border-2 border-accent rounded-[40px] animate-pulse" />
-          </div>
-          <p className="absolute bottom-12 text-white/90 text-sm font-semibold tracking-wide uppercase px-4 py-2 bg-black/30 backdrop-blur-md rounded-full">
-            Sejajarkan QR dalam kotak
+      {previewResult?.validation.activeApproval && !isSuccessModalOpen && (
+        <div className="approval-inline-card">
+          <span className="panel-tag">Approval Aktif</span>
+          <strong>
+            {previewResult.validation.activeApproval.type} untuk {previewResult.authenticatedStudent.name}
+          </strong>
+          <p className="session-meta">
+            Scan berikut akan memakai approval yang masih aktif dan menyiapkan aksi keluar sesuai izin guru.
           </p>
         </div>
+      )}
 
-        {isStartingCamera && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white" aria-live="polite">
-            <p className="font-bold">Membuka Kamera...</p>
-          </div>
-        )}
-
-        {isPreviewing && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white backdrop-blur-sm" aria-live="polite">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="font-bold">Memvalidasi Scan...</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 3. Bottom: Manual Input & Actions */}
-      <Card className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <span className="panel-tag">Input Manual</span>
-          <form 
-            className="flex flex-col gap-2" 
+      <div className="scan-manual-panel">
+        <span className="panel-tag">Input Manual</span>
+        <p className="session-meta">
+          Gunakan opsi ini hanya jika kamera tidak bisa membaca QR dengan stabil.
+        </p>
+        <details className="scan-fallback-panel" open={!isCameraActive && !detectedPayload}>
+          <summary>Tempel payload QR secara manual</summary>
+          <form
+            className="scan-fallback-form"
             onSubmit={(e) => {
               e.preventDefault();
               handleManualFormSubmit();
             }}
           >
-            <div className="flex gap-2">
+            <div className="scan-manual-row">
               <input
                 id="input-manualvalue"
                 className={`text-input flex-1 ${manualTouched.manualValue && manualErrors.manualValue ? "border-danger" : ""}`}
                 onChange={(e) => handleManualChange("manualValue", e.target.value)}
                 onBlur={() => handleManualBlur("manualValue")}
-                placeholder=" container://..."
+                placeholder="container://..."
                 type="text"
                 value={manualValues.manualValue}
                 aria-label="Manual QR payload"
                 aria-invalid={manualTouched.manualValue && !!manualErrors.manualValue}
                 aria-describedby={manualTouched.manualValue && manualErrors.manualValue ? "manual-qr-error" : undefined}
               />
-              <Button 
-                variant="secondary" 
-                size="sm" 
+              <Button
+                variant="secondary"
+                size="sm"
                 type="submit"
                 disabled={manualTouched.manualValue && !!manualErrors.manualValue}
                 title={manualErrors.manualValue}
@@ -470,22 +523,9 @@ export function MobileScannerShell({
               <span id="manual-qr-error" className="text-xs text-danger" role="alert">{manualErrors.manualValue}</span>
             )}
           </form>
-        </div>
-        
-        {!isCameraActive && !isPreviewing && !isConfirmModalOpen && !isSuccessModalOpen && (
-          <Button onClick={startCamera} className="w-full" size="lg" aria-label="Mulai scan kamera baru">
-            Scan QR Baru
-          </Button>
-        )}
-        
-        {isCameraActive && (
-          <Button variant="secondary" onClick={stopCamera} className="w-full" aria-label="Matikan kamera">
-            Matikan Kamera
-          </Button>
-        )}
-      </Card>
+        </details>
+      </div>
 
-      {/* Confirmation Bottom Sheet */}
       <Modal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -493,15 +533,15 @@ export function MobileScannerShell({
         type="bottom-sheet"
         footer={
           <>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               onClick={handleConfirmTransaction}
               disabled={!previewResult?.validation.rules.isAllowed || isSubmittingTransaction}
             >
               {isSubmittingTransaction ? "Memproses..." : "Konfirmasi & Lanjutkan"}
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => {
                 setIsConfirmModalOpen(false);
                 void startCamera();
@@ -541,12 +581,12 @@ export function MobileScannerShell({
               <div className="p-4 rounded-2xl bg-danger-bg text-danger flex flex-col gap-1" role="alert">
                  <p className="font-bold">Scan Tidak Diizinkan</p>
                  <p className="text-sm opacity-90">
-                   {previewResult.validation.penaltyStatus?.message || 
+                   {previewResult.validation.penaltyStatus?.message ||
                     "Tidak sesuai jadwal operasional. Silakan hubungi guru jika darurat."}
                  </p>
               </div>
             )}
-            
+
             {transactionError && (
               <div className="p-4 rounded-2xl bg-danger-bg text-danger text-sm font-semibold" role="alert">
                 {transactionError}
@@ -556,7 +596,6 @@ export function MobileScannerShell({
         )}
       </Modal>
 
-      {/* Success Animation Modal */}
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={() => {
@@ -577,12 +616,12 @@ export function MobileScannerShell({
               {transactionResult?.message || "Scan offline telah disimpan secara lokal."}
             </p>
           </div>
-          
+
           <Card className="w-full bg-surface-strong/50 border-none">
              <div className="grid grid-cols-2 gap-y-4">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-muted uppercase">Status</span>
-                  <span className="font-bold text-success">{transactionResult?.transaction.action === "IN" ? "TERSIMPAN" : "DIAMBIL"}</span>
+                  <span className="font-bold text-success">{successAction === "IN" ? "TERSIMPAN" : "DIAMBIL"}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-muted uppercase">Waktu</span>
@@ -601,22 +640,6 @@ export function MobileScannerShell({
           }} className="w-full" size="lg">Scan Lainnya</Button>
         </div>
       </Modal>
-
-      {cameraError && (
-        <Card variant="danger" className="text-center" role="alert">
-          <p className="font-bold mb-2">Masalah Kamera</p>
-          <p className="text-sm opacity-90 mb-4">{cameraError}</p>
-          <Button variant="secondary" onClick={() => void startCamera()}>Coba Lagi</Button>
-        </Card>
-      )}
-
-      {previewError && (
-        <Card variant="danger" className="text-center" role="alert">
-          <p className="font-bold mb-2">Gagal Validasi</p>
-          <p className="text-sm opacity-90 mb-4">{previewError}</p>
-          <Button variant="secondary" onClick={() => void startCamera()}>Scan Ulang</Button>
-        </Card>
-      )}
     </section>
   );
 }
